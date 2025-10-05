@@ -1,0 +1,13 @@
+[plugin]
+name = "docker"
+version = "1.0.0"
+description = "Docker container management shortcuts and workflows"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+commands = ["docker"]
+
+[config]
+auto_prune = false
+show_container_names = true

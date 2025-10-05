@@ -1,0 +1,14 @@
+[plugin]
+name = "dev-tools"
+version = "1.0.0"
+description = "Development tools and modern CLI utilities"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+# Optional - plugin adapts to available tools
+commands = []
+
+[config]
+preferred_editor = "nvim"
+preferred_ls = "eza"

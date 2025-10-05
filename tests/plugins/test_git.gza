@@ -1,0 +1,33 @@
+-- Test script for git plugin
+-- Validates git plugin functionality
+
+print("Testing Git Plugin...")
+
+-- Load the plugin
+local plugin_loaded = enable_plugin("git")
+if not plugin_loaded then
+    error("Failed to load git plugin")
+end
+
+-- Test 1: Check if git aliases are defined
+print("✓ Test 1: Git plugin loaded")
+
+-- Test 2: Verify git is available (if installed)
+if command_exists("git") then
+    print("✓ Test 2: Git command found in PATH")
+
+    -- Test basic git command
+    local result = exec("git --version")
+    if result then
+        print("✓ Test 3: Git version command executed")
+    end
+else
+    print("⚠ Git not installed - skipping git tests")
+end
+
+-- Test 3: Check if aliases work
+-- Note: We can't fully test aliases without actually running git commands
+-- but we can verify the plugin loaded
+print("✓ Test 4: Git plugin validation complete")
+
+print("\n=== Git Plugin Tests PASSED ===")

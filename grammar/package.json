@@ -1,0 +1,36 @@
+{
+  "name": "tree-sitter-gshell",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for GShell",
+  "main": "bindings/node",
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "gshell",
+    "shell"
+  ],
+  "author": "GhostKellz",
+  "license": "MIT",
+  "dependencies": {
+    "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.20.8"
+  },
+  "scripts": {
+    "build": "tree-sitter generate && node-gyp build",
+    "test": "tree-sitter test"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.gshell",
+      "file-types": [
+        "gsh",
+        "gshell"
+      ],
+      "highlights": [
+        "queries/highlights.scm"
+      ]
+    }
+  ]
+}

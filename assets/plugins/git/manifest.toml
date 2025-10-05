@@ -1,0 +1,14 @@
+[plugin]
+name = "git"
+version = "1.0.0"
+description = "Git shortcuts and aliases"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+commands = ["git"]
+
+[config]
+# Plugin-specific configuration
+enable_auto_fetch = false
+show_dirty_state = true

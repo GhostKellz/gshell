@@ -1,0 +1,177 @@
+-- System Plugin for GShell
+-- System administration and utility commands
+
+-- ── Process Management ────────────────────────────────────────
+alias("psa", "ps aux")
+alias("psg", "ps aux | grep")
+alias("psgrep", "ps aux | grep -v grep | grep -i -e VSZ -e")
+
+-- Kill processes
+alias("k9", "kill -9")
+alias("ka", "killall")
+
+-- ── Disk Usage ────────────────────────────────────────────────
+alias("df", "df -h")
+alias("du", "du -h")
+alias("duh", "du -h --max-depth=1")
+alias("dus", "du -sh")
+alias("free", "free -h")
+
+-- ── System Information ────────────────────────────────────────
+alias("cpu", "lscpu")
+alias("mem", "free -h")
+alias("disk", "df -h")
+
+-- ── Systemd (if available) ────────────────────────────────────
+if command_exists("systemctl") then
+    alias("sc", "systemctl")
+    alias("scs", "systemctl status")
+    alias("scr", "sudo systemctl restart")
+    alias("sce", "sudo systemctl enable")
+    alias("scd", "sudo systemctl disable")
+    alias("scstart", "sudo systemctl start")
+    alias("scstop", "sudo systemctl stop")
+    alias("scl", "systemctl list-units")
+    alias("jc", "journalctl")
+    alias("jcf", "journalctl -f")
+    alias("jcu", "journalctl -u")
+end
+
+-- ── File Permissions ──────────────────────────────────────────
+alias("chx", "chmod +x")
+alias("ch755", "chmod 755")
+alias("ch644", "chmod 644")
+
+-- ── Archiving ─────────────────────────────────────────────────
+alias("tgz", "tar -czvf")
+alias("tuz", "tar -xzvf")
+alias("tbz", "tar -cjvf")
+alias("tub", "tar -xjvf")
+
+-- ── Network ───────────────────────────────────────────────────
+alias("myip", "curl -s ifconfig.me")
+alias("localip", "ip a | grep 'inet ' | grep -v 127.0.0.1")
+
+-- ── Monitoring ────────────────────────────────────────────────
+if command_exists("htop") then
+    alias("top", "htop")
+end
+
+if command_exists("ncdu") then
+    alias("du", "ncdu")
+end
+
+-- ── Helper Functions ──────────────────────────────────────────
+-- Show system information
+function sysinfo()
+    print("=== System Information ===")
+    exec("uname -a")
+    print("\n=== CPU ===")
+    exec("lscpu | grep 'Model name\\|CPU(s)\\|Thread(s)'")
+    print("\n=== Memory ===")
+    exec("free -h")
+    print("\n=== Disk Usage ===")
+    exec("df -h | grep -E '^/dev/'")
+    print("\n=== Uptime ===")
+    exec("uptime")
+end
+
+-- Find large files
+function findlarge(size)
+    local min_size = size or "100M"
+    exec("find . -type f -size +" .. min_size .. " -exec ls -lh {} \\; 2>/dev/null | awk '{ print $9 \": \" $5 }'")
+end
+
+-- Find old files
+function findold(days)
+    local min_days = days or "30"
+    exec("find . -type f -mtime +" .. min_days .. " -exec ls -lh {} \\; 2>/dev/null")
+end
+
+-- Show listening ports
+function ports()
+    if command_exists("ss") then
+        exec("sudo ss -tuln")
+    else
+        exec("sudo netstat -tuln")
+    end
+end
+
+-- Show top processes by CPU
+function topcpu()
+    exec("ps aux --sort=-%cpu | head -n 11")
+end
+
+-- Show top processes by memory
+function topmem()
+    exec("ps aux --sort=-%mem | head -n 11")
+end
+
+-- Clean package cache (distro-specific)
+function clean_cache()
+    if command_exists("pacman") then
+        exec("sudo pacman -Scc --noconfirm")
+    elseif command_exists("apt") then
+        exec("sudo apt clean && sudo apt autoclean")
+    elseif command_exists("dnf") then
+        exec("sudo dnf clean all")
+    elseif command_exists("yum") then
+        exec("sudo yum clean all")
+    else
+        print("Package manager not recognized")
+    end
+end
+
+-- System update (distro-specific)
+function sysupdate()
+    print("Updating system packages...")
+    if command_exists("pacman") then
+        exec("sudo pacman -Syu")
+    elseif command_exists("apt") then
+        exec("sudo apt update && sudo apt upgrade -y")
+    elseif command_exists("dnf") then
+        exec("sudo dnf upgrade -y")
+    elseif command_exists("yum") then
+        exec("sudo yum update -y")
+    else
+        print("Package manager not recognized")
+    end
+end
+
+-- Check service status
+function service_status(service_name)
+    if not service_name then
+        print("Usage: service_status <service_name>")
+        return
+    end
+
+    if command_exists("systemctl") then
+        exec("systemctl status " .. service_name)
+    else
+        print("systemctl not available")
+    end
+end
+
+-- Show failed services
+function failed_services()
+    if command_exists("systemctl") then
+        exec("systemctl --failed")
+    else
+        print("systemctl not available")
+    end
+end
+
+-- Reload systemd daemon
+function daemon_reload()
+    if command_exists("systemctl") then
+        exec("sudo systemctl daemon-reload")
+        print("✓ Systemd daemon reloaded")
+    else
+        print("systemctl not available")
+    end
+end
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ System plugin loaded")
+print("  Try: sysinfo, ports, topcpu, topmem, sysupdate")
+return true

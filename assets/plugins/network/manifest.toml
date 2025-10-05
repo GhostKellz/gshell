@@ -1,0 +1,14 @@
+[plugin]
+name = "network"
+version = "1.0.0"
+description = "Network diagnostics and tools for IT professionals"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+# Optional commands - plugin works with subset
+commands = []
+
+[config]
+default_ping_target = "google.com"
+default_dns = "8.8.8.8"

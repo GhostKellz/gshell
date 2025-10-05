@@ -1,0 +1,113 @@
+-- Network Plugin for GShell
+-- Network diagnostics and utilities for IT professionals
+
+-- ── Ping Aliases ──────────────────────────────────────────────
+alias("pgd", "ping google.com")
+alias("p8", "ping 8.8.8.8")
+alias("p1", "ping 1.1.1.1")
+alias("pcf", "ping 1.1.1.1")  -- Cloudflare DNS
+
+-- ── IP Address Tools ──────────────────────────────────────────
+alias("myip", "curl -s ifconfig.me")
+alias("publicip", "curl -s ifconfig.me")
+alias("extip", "curl -s ipecho.net/plain")
+alias("localip", "ip a | grep 'inet ' | grep -v 127.0.0.1")
+
+-- Alternative myip implementations
+function whatismyip()
+    local ip = exec("curl -s ifconfig.me")
+    if ip then
+        print("Public IP: " .. ip)
+    else
+        print("Failed to get public IP")
+    end
+end
+
+-- ── DNS Tools ──────────────────────────────────────────────────
+alias("dnsflush", "sudo resolvectl flush-caches")
+alias("dnsflush-mac", "sudo dscacheutil -flushcache")
+alias("dnstest", "dig google.com")
+
+-- ── Port Scanning ──────────────────────────────────────────────
+if command_exists("nmap") then
+    alias("portscan", "nmap -Pn -p-")
+    alias("quickscan", "nmap -F")
+    alias("stealthscan", "sudo nmap -sS")
+end
+
+-- ── Network Monitoring ─────────────────────────────────────────
+if command_exists("ss") then
+    alias("listening", "ss -tuln")
+    alias("connections", "ss -tun")
+else
+    alias("listening", "netstat -tuln")
+    alias("connections", "netstat -tun")
+end
+
+alias("ports", "sudo lsof -i -P -n | grep LISTEN")
+alias("openports", "sudo lsof -i -P -n | grep LISTEN")
+
+-- ── Network Interface Tools ───────────────────────────────────
+alias("interfaces", "ip link show")
+alias("routes", "ip route")
+alias("arp", "ip neigh")
+
+-- ── Speed Test ─────────────────────────────────────────────────
+if command_exists("speedtest-cli") then
+    alias("speedtest", "speedtest-cli")
+    alias("speedtest-simple", "speedtest-cli --simple")
+end
+
+-- ── Wget/Curl Shortcuts ────────────────────────────────────────
+alias("dlfile", "wget -c")  -- Resume downloads
+alias("dlpage", "wget -p -k")  -- Download page with assets
+alias("headers", "curl -I")  -- Get HTTP headers
+
+-- ── Helper Functions ──────────────────────────────────────────
+-- Check if a port is open
+function portcheck(host, port)
+    if not host or not port then
+        print("Usage: portcheck <host> <port>")
+        return
+    end
+
+    local result = exec("timeout 2 bash -c '</dev/tcp/" .. host .. "/" .. port .. "' 2>/dev/null")
+    if result then
+        print("✓ Port " .. port .. " is open on " .. host)
+    else
+        print("✗ Port " .. port .. " is closed on " .. host)
+    end
+end
+
+-- Get local network info
+function netinfo()
+    print("=== Network Information ===")
+    exec("ip -br addr")
+    print("\n=== Default Gateway ===")
+    exec("ip route | grep default")
+    print("\n=== DNS Servers ===")
+    exec("cat /etc/resolv.conf | grep nameserver")
+end
+
+-- Quick ping test
+function pingtest()
+    print("Testing connectivity...")
+    print("\n[1/3] Google (8.8.8.8):")
+    exec("ping -c 2 8.8.8.8")
+    print("\n[2/3] Cloudflare (1.1.1.1):")
+    exec("ping -c 2 1.1.1.1")
+    print("\n[3/3] OpenDNS (208.67.222.222):")
+    exec("ping -c 2 208.67.222.222")
+end
+
+-- ── GShell Network Built-ins ──────────────────────────────────
+-- Note: GShell has native network commands:
+-- - net-test <host> <port>  : Test TCP connection
+-- - net-resolve <domain>    : DNS resolution
+-- - net-fetch <url>         : HTTP GET request
+-- - net-scan <cidr>         : Scan CIDR range
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ Network plugin loaded")
+print("  Try: pgd, myip, portscan, netinfo, pingtest")
+return true

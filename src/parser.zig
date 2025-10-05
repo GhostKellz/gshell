@@ -15,6 +15,24 @@ pub const Command = struct {
 
 pub const Pipeline = struct {
     commands: []Command,
+    background: bool = false,
+
+    pub fn deinit(self: Pipeline, allocator: std.mem.Allocator) void {
+        for (self.commands) |cmd| {
+            // Free each arg in argv
+            for (cmd.argv) |arg| {
+                allocator.free(arg);
+            }
+            // Free argv array
+            allocator.free(cmd.argv);
+
+            // Free redirection files if present
+            if (cmd.stdin_file) |f| allocator.free(f);
+            if (cmd.stdout_file) |f| allocator.free(f);
+        }
+        // Free commands array
+        allocator.free(self.commands);
+    }
 };
 
 const TokenType = enum {
@@ -23,6 +41,7 @@ const TokenType = enum {
     redirect_in,
     redirect_out,
     redirect_append,
+    ampersand,
 };
 
 const Token = struct {
@@ -61,6 +80,7 @@ pub fn parseLine(allocator: std.mem.Allocator, line: []const u8) !Pipeline {
     var stdout_file: ?[]const u8 = null;
     var stdout_mode = RedirectionMode.none;
     var expect_redirect: ?TokenType = null;
+    var background = false;
 
     for (arena_stream.items, 0..) |token, idx| {
         switch (token.ty) {
@@ -99,6 +119,12 @@ pub fn parseLine(allocator: std.mem.Allocator, line: []const u8) !Pipeline {
                 stdout_file = null;
                 stdout_mode = .none;
             },
+            .ampersand => {
+                if (idx != arena_stream.items.len - 1) {
+                    return error.UnexpectedToken;
+                }
+                background = true;
+            },
             .redirect_in, .redirect_out, .redirect_append => {
                 if (expect_redirect != null) return error.UnexpectedToken;
                 if (idx + 1 >= arena_stream.items.len) {
@@ -120,7 +146,10 @@ pub fn parseLine(allocator: std.mem.Allocator, line: []const u8) !Pipeline {
         .stdout_mode = stdout_mode,
     });
 
-    return Pipeline{ .commands = try commands.toOwnedSlice(allocator) };
+    return Pipeline{
+        .commands = try commands.toOwnedSlice(allocator),
+        .background = background,
+    };
 }
 
 fn tokenize(allocator: std.mem.Allocator, input: []const u8, tokens: *std.ArrayListUnmanaged(Token)) !void {
@@ -170,6 +199,14 @@ fn tokenize(allocator: std.mem.Allocator, input: []const u8, tokens: *std.ArrayL
                     buf.clearRetainingCapacity();
                 }
                 try tokens.append(allocator, .{ .ty = .pipe, .value = input[i .. i + 1] });
+            },
+            '&' => {
+                if (buf.items.len > 0) {
+                    const slice = try allocator.dupe(u8, buf.items);
+                    try tokens.append(allocator, .{ .ty = .word, .value = slice });
+                    buf.clearRetainingCapacity();
+                }
+                try tokens.append(allocator, .{ .ty = .ampersand, .value = input[i .. i + 1] });
             },
             '<' => {
                 if (buf.items.len > 0) {

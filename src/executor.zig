@@ -6,6 +6,7 @@ const builtins = @import("builtins.zig");
 pub const ExecOutcome = struct {
     status: i32,
     output: []const u8,
+    job_id: ?u32 = null,
 };
 
 pub fn runPipeline(
@@ -17,6 +18,10 @@ pub fn runPipeline(
         return ExecOutcome{ .status = 0, .output = &[_]u8{} };
     }
 
+    if (pipeline.background) {
+        return try runPipelineBackground(allocator, shell_state, pipeline);
+    }
+
     var previous_output: []const u8 = &[_]u8{};
     var status: i32 = 0;
 
@@ -26,9 +31,36 @@ pub fn runPipeline(
             effective_input = try readFileAll(allocator, path);
         }
 
-        const expanded_args = try expandArgs(allocator, shell_state, command.argv);
+        var expanded_args = try expandArgs(allocator, shell_state, command.argv);
+        defer {
+            for (expanded_args) |arg| allocator.free(arg);
+            allocator.free(expanded_args);
+        }
+
         if (expanded_args.len == 0) {
             continue;
+        }
+
+        // Check for alias expansion
+        if (shell_state.getAlias(expanded_args[0])) |alias_value| {
+            // Parse the alias value into separate words
+            var alias_parts = std.ArrayListUnmanaged([]const u8){};
+            defer alias_parts.deinit(allocator);
+
+            var iter = std.mem.tokenizeScalar(u8, alias_value, ' ');
+            while (iter.next()) |part| {
+                try alias_parts.append(allocator, try allocator.dupe(u8, part));
+            }
+
+            // Append remaining args after the command name
+            for (expanded_args[1..]) |arg| {
+                try alias_parts.append(allocator, try allocator.dupe(u8, arg));
+            }
+
+            // Replace expanded_args with alias expansion
+            for (expanded_args) |arg| allocator.free(arg);
+            allocator.free(expanded_args);
+            expanded_args = try alias_parts.toOwnedSlice(allocator);
         }
 
         if (builtins.lookup(expanded_args[0])) |handler| {
@@ -144,7 +176,7 @@ fn runExternal(
     if (needs_input) {
         if (proc.stdin) |stdin_stream| {
             try stdin_stream.writeAll(input_data);
-            stdin_stream.close();
+            // Don't manually close - wait() will handle cleanup
         }
     }
 
@@ -158,7 +190,7 @@ fn runExternal(
             if (bytes == 0) break;
             try output_buffer.appendSlice(allocator, temp[0..bytes]);
         }
-        stdout_stream.close();
+        // Don't manually close - wait() will handle cleanup
     }
 
     const term = try proc.wait();
@@ -209,6 +241,45 @@ fn writeOutput(path: []const u8, mode: parser.RedirectionMode, data: []const u8)
     if (data.len > 0) {
         try file.writeAll(data);
     }
+}
+
+fn runPipelineBackground(
+    allocator: std.mem.Allocator,
+    shell_state: *state.ShellState,
+    pipeline: parser.Pipeline,
+) !ExecOutcome {
+    if (pipeline.commands.len != 1) {
+        return error.UnsupportedPipeline;
+    }
+
+    const command = pipeline.commands[0];
+    const expanded_args = try expandArgs(allocator, shell_state, command.argv);
+    if (expanded_args.len == 0) {
+        return ExecOutcome{ .status = 0, .output = &[_]u8{} };
+    }
+
+    var proc = std.process.Child.init(expanded_args, allocator);
+    proc.stdin_behavior = .Ignore;
+    proc.stdout_behavior = .Ignore;
+    proc.stderr_behavior = .Inherit;
+    proc.env_map = &shell_state.env;
+
+    try proc.spawn();
+
+    var command_str = std.ArrayListUnmanaged(u8){};
+    defer command_str.deinit(allocator);
+    for (expanded_args, 0..) |arg, idx| {
+        if (idx > 0) try command_str.append(allocator, ' ');
+        try command_str.appendSlice(allocator, arg);
+    }
+
+    const job_id = try shell_state.addJob(proc.id, command_str.items);
+
+    return ExecOutcome{
+        .status = 0,
+        .output = &[_]u8{},
+        .job_id = job_id,
+    };
 }
 
 fn expectEqualStrings(a: []const u8, b: []const u8) !void {

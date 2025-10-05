@@ -14,6 +14,21 @@
 
 ---
 
+## 📦 CLI Snapshot
+
+```
+gshell [--config PATH] [-c COMMAND]
+gshell [--config PATH] SCRIPT.gsh [args...]
+gshell init [--config PATH] [--force]
+gshell completions <bash|zsh|fish|elvish>
+```
+
+- CLI implemented with Flash (`src/main.zig`).
+- Preprocesses flags so `-c` and script paths behave like Bash.
+- `gshell init` scaffolds a TOML config (see Flare layering below).
+- `gshell completions` prints completion scripts for supported shells.
+- Interactive sessions enable a gcode-backed raw line editor for grapheme-aware cursoring and emoji-safe deletion.
+
 ## 📦 Core Milestones
 
 ### Phase 1 — Foundations
@@ -41,6 +56,21 @@
 - [ ] Smart prompts: async git status, system info, etc.
 
 ---
+
+## 🛠️ Configuration (Flare)
+
+- Defaults defined in `src/config.zig` (`prompt`, `interactive`, etc.).
+- File: `~/.gshrc` (TOML) or custom path via `--config` / `GSHELL_CONFIG`.
+- Environment overrides: `GSHELL__PROMPT="{user}@{host} $ "`, `GSHELL__INTERACTIVE=false`, etc.
+- Precedence: CLI path > environment variables > file > defaults.
+- Validation errors bubble up as `LoadError.InvalidConfig` with contextual messaging.
+
+## ✨ Unicode Editing (gcode)
+
+- Raw TTY sessions disable canonical mode and route keystrokes through gcode.
+- Grapheme iterators keep backspace, delete, and cursor redraw safe for emoji and combining marks.
+- Prompt rendering uses gcode width calculations to avoid drift with double-width glyphs.
+- Navigation keys (Left/Right/Home/End/Delete) operate on grapheme clusters for intuitive editing.
 
 ## 🌐 Ghost Ecosystem Integration
 - [ ] Native support for `.gza` (GhostLang) inline scripting

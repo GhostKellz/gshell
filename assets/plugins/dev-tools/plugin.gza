@@ -1,0 +1,173 @@
+-- Dev Tools Plugin for GShell
+-- Modern CLI tools and development aliases
+
+-- ── Editor Aliases ────────────────────────────────────────────
+-- Priority: grim (custom Zig editor) > nvim > vim
+if command_exists("grim") then
+    alias("vi", "grim")
+    alias("vim", "grim")
+    alias("v", "grim")
+    setenv("EDITOR", "grim")
+    setenv("VISUAL", "grim")
+    print("✓ Grim (custom editor): vi, vim, v")
+elseif command_exists("nvim") then
+    alias("vi", "nvim")
+    alias("vim", "nvim")
+    alias("v", "nvim")
+    setenv("EDITOR", "nvim")
+    setenv("VISUAL", "nvim")
+    print("✓ Neovim aliases: vi, vim, v")
+end
+
+-- ── Modern ls (eza/exa) ───────────────────────────────────────
+if command_exists("eza") then
+    alias("ls", "eza --icons --group-directories-first")
+    alias("ll", "eza -lah --icons --group-directories-first")
+    alias("la", "eza -A --icons --group-directories-first")
+    alias("l", "eza -CF --icons")
+    alias("lt", "eza --tree --level=2 --icons")
+    alias("llt", "eza --tree --level=2 --long --icons")
+    alias("dotfiles", "eza -a --icons --group-directories-first | grep '^\\.'" )
+    print("✓ eza aliases: ls, ll, la, l, lt")
+elseif command_exists("exa") then
+    alias("ls", "exa --icons --group-directories-first")
+    alias("ll", "exa -lah --icons --group-directories-first")
+    alias("la", "exa -A --icons --group-directories-first")
+    alias("l", "exa -CF --icons")
+    alias("lt", "exa --tree --level=2 --icons")
+    print("✓ exa aliases: ls, ll, la, l, lt")
+end
+
+-- ── Modern cat (bat) ──────────────────────────────────────────
+if command_exists("bat") then
+    alias("cat", "bat --style=auto")
+    alias("ccat", "/bin/cat")  -- Original cat
+    print("✓ bat aliases: cat (bat), ccat (original)")
+end
+
+-- ── Modern grep (ripgrep) ─────────────────────────────────────
+if command_exists("rg") then
+    alias("grep", "rg")
+    alias("ggrep", "/bin/grep")  -- Original grep
+    print("✓ ripgrep aliases: grep (rg), ggrep (original)")
+end
+
+-- ── Modern find (fd) ──────────────────────────────────────────
+if command_exists("fd") then
+    alias("find", "fd")
+    alias("ffind", "/bin/find")  -- Original find
+    print("✓ fd aliases: find (fd), ffind (original)")
+end
+
+-- ── Directory Navigation ──────────────────────────────────────
+alias("..", "cd ..")
+alias("...", "cd ../..")
+alias("....", "cd ../../..")
+alias("~", "cd ~")
+alias("-", "cd -")
+
+-- ── Version Checkers ──────────────────────────────────────────
+alias("zigv", "zig version")
+alias("pyver", "python --version")
+alias("nodever", "node --version")
+alias("rustver", "rustc --version")
+alias("gover", "go version")
+
+-- ── Docker Shortcuts ──────────────────────────────────────────
+if command_exists("docker") then
+    alias("d", "docker")
+    alias("dc", "docker-compose")
+    alias("dps", "docker ps")
+    alias("dpsa", "docker ps -a")
+    alias("di", "docker images")
+    alias("dex", "docker exec -it")
+    alias("dlogs", "docker logs -f")
+    alias("dstop", "docker stop $(docker ps -q)")
+    print("✓ Docker aliases: d, dc, dps, di, dex")
+end
+
+-- ── Kubernetes Shortcuts ──────────────────────────────────────
+if command_exists("kubectl") then
+    alias("k", "kubectl")
+    alias("kg", "kubectl get")
+    alias("kd", "kubectl describe")
+    alias("kdel", "kubectl delete")
+    alias("klog", "kubectl logs -f")
+    alias("kex", "kubectl exec -it")
+    alias("kctx", "kubectl config current-context")
+    print("✓ Kubernetes aliases: k, kg, kd, klog, kex")
+end
+
+-- ── System Tools ──────────────────────────────────────────────
+alias("reload", "exec gshell")
+alias("h", "history")
+alias("hgrep", "history | grep")
+alias("pgrep", "ps aux | grep")
+alias("sizeof", "du -sh")
+alias("diskspace", "df -h")
+
+-- Package manager shortcuts
+if command_exists("pacman") then
+    alias("update", "sudo pacman -Syu --noconfirm")
+    alias("install", "sudo pacman -S")
+    alias("remove", "sudo pacman -R")
+    alias("search", "pacman -Ss")
+    print("✓ Pacman aliases: update, install, remove, search")
+elseif command_exists("apt") then
+    alias("update", "sudo apt update && sudo apt upgrade -y")
+    alias("install", "sudo apt install")
+    alias("remove", "sudo apt remove")
+    alias("search", "apt search")
+    print("✓ APT aliases: update, install, remove, search")
+end
+
+-- ── Development Workflows ─────────────────────────────────────
+-- Quick HTTP server
+if command_exists("python3") then
+    alias("serve", "python3 -m http.server 8000")
+    alias("pyserve", "python3 -m http.server")
+end
+
+-- JSON pretty print
+if command_exists("jq") then
+    alias("json", "jq '.'")
+    print("✓ jq alias: json")
+end
+
+-- ── Helper Functions ──────────────────────────────────────────
+-- Make directory and cd into it
+function mkcd(dir)
+    if not dir then
+        print("Usage: mkcd <directory>")
+        return
+    end
+    exec("mkdir -p " .. dir)
+    exec("cd " .. dir)
+end
+
+-- Extract various archive formats
+function extract(file)
+    if not file then
+        print("Usage: extract <file>")
+        return
+    end
+
+    if file:match("%.tar%.gz$") or file:match("%.tgz$") then
+        exec("tar xzf " .. file)
+    elseif file:match("%.tar%.bz2$") then
+        exec("tar xjf " .. file)
+    elseif file:match("%.tar$") then
+        exec("tar xf " .. file)
+    elseif file:match("%.zip$") then
+        exec("unzip " .. file)
+    elseif file:match("%.7z$") then
+        exec("7z x " .. file)
+    else
+        print("Unknown archive format: " .. file)
+    end
+end
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ Dev tools plugin loaded")
+print("  Try: v, ll, .., zigv, mkcd, extract")
+return true

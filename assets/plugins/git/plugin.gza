@@ -1,0 +1,132 @@
+-- Git Plugin for GShell
+-- Provides git shortcuts and aliases matching common workflows
+
+-- Check if git is available
+if not command_exists("git") then
+    print("⚠️  Git plugin requires git to be installed")
+    return false
+end
+
+-- ── Core Git Aliases ──────────────────────────────────────────
+alias("g", "git")
+alias("gs", "git status")
+alias("gst", "git status -sb")
+
+-- Adding files
+alias("ga", "git add")
+alias("gaa", "git add .")
+alias("gau", "git add -u")
+
+-- Committing
+alias("gc", "git commit")
+alias("gcm", "git commit -m")
+alias("gca", "git commit --amend")
+alias("gcan", "git commit --amend --no-edit")
+
+-- Pushing/Pulling
+alias("gps", "git push")
+alias("gpl", "git pull")
+alias("gpf", "git push --force-with-lease")
+alias("gpu", "git push -u origin HEAD")
+
+-- Branching
+alias("gb", "git branch")
+alias("gba", "git branch -a")
+alias("gbd", "git branch -d")
+alias("gbD", "git branch -D")
+alias("gco", "git checkout")
+alias("gcb", "git checkout -b")
+alias("gcm", "git checkout main")
+alias("gcd", "git checkout develop")
+
+-- Diffing
+alias("gd", "git diff")
+alias("gds", "git diff --staged")
+alias("gdw", "git diff --word-diff")
+
+-- Logging
+alias("gl", "git log --oneline")
+alias("glog", "git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit")
+alias("glg", "git log --graph --oneline --decorate --all")
+
+-- Stashing
+alias("gsta", "git stash")
+alias("gstp", "git stash pop")
+alias("gstl", "git stash list")
+alias("gstd", "git stash drop")
+
+-- Fetching
+alias("gf", "git fetch")
+alias("gfa", "git fetch --all")
+alias("gfo", "git fetch origin")
+
+-- Merging/Rebasing
+alias("gm", "git merge")
+alias("grb", "git rebase")
+alias("grbi", "git rebase -i")
+alias("grbc", "git rebase --continue")
+alias("grba", "git rebase --abort")
+
+-- Reset
+alias("grh", "git reset HEAD")
+alias("grhh", "git reset --hard HEAD")
+alias("groh", "git reset --hard origin/HEAD")
+
+-- Remote
+alias("gr", "git remote")
+alias("grv", "git remote -v")
+alias("gra", "git remote add")
+alias("grr", "git remote remove")
+
+-- Clean
+alias("gclean", "git clean -fd")
+alias("gcleanx", "git clean -fdx")
+
+-- ── Helper Functions ──────────────────────────────────────────
+function git_current_branch()
+    if path_exists(".git/HEAD") then
+        local head = read_file(".git/HEAD")
+        if head then
+            local branch = head:match("ref: refs/heads/(.+)")
+            return branch or "HEAD"
+        end
+    end
+    return nil
+end
+
+function git_root()
+    local root = exec("git rev-parse --show-toplevel 2>/dev/null")
+    return root
+end
+
+function git_is_dirty()
+    local status = exec("git status --porcelain 2>/dev/null")
+    return status and #status > 0
+end
+
+-- ── Advanced Workflows ────────────────────────────────────────
+-- Quick commit and push
+function gcp(message)
+    if not message then
+        print("Usage: gcp \"commit message\"")
+        return
+    end
+    exec("git add .")
+    exec("git commit -m \"" .. message .. "\"")
+    exec("git push")
+end
+
+-- Undo last commit (keep changes)
+function gundo()
+    exec("git reset --soft HEAD~1")
+end
+
+-- Quick fix: commit all and amend
+function gfix()
+    exec("git add .")
+    exec("git commit --amend --no-edit")
+end
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ Git plugin loaded")
+return true

@@ -1,0 +1,13 @@
+[plugin]
+name = "kubectl"
+version = "1.0.0"
+description = "Kubernetes cluster management and kubectl shortcuts"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+commands = ["kubectl"]
+
+[config]
+show_namespace = true
+auto_complete = true

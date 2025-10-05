@@ -1,0 +1,3 @@
+# Test config with Starship enabled
+use_starship = true
+interactive = true

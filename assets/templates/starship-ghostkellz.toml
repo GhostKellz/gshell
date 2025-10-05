@@ -1,0 +1,228 @@
+# Starship Configuration - GhostKellz Edition
+# Matches your Powerlevel10k style with rainbow powerline
+#
+# Installation:
+#   cp assets/templates/starship-ghostkellz.toml ~/.config/starship.toml
+#   echo 'use_starship(true)' >> ~/.gshrc
+
+# Format string - defines prompt layout
+# Left side: os + user/host + directory + git
+# Right side: status + exec_time + languages + k8s + aws + time
+format = """
+[](fg:33)\
+$os\
+[](bg:17 fg:33)\
+$username\
+[](bg:39 fg:17)\
+$directory\
+[](bg:64 fg:39)\
+$git_branch\
+$git_status\
+[](fg:64)\
+$fill\
+[](fg:196)\
+$status\
+[](bg:214 fg:196)\
+$cmd_duration\
+[](bg:118 fg:214)\
+$nodejs\
+$rust\
+$golang\
+$python\
+$java\
+$ruby\
+$lua\
+$php\
+[](bg:33 fg:118)\
+$kubernetes\
+$aws\
+[](bg:237 fg:33)\
+$time\
+[](fg:237)
+$line_break\
+$character"""
+
+# OS icon (Arch Linux logo)
+[os]
+disabled = false
+style = "bg:33 fg:18"
+format = "[ 󰣇 ]($style)"
+
+[os.symbols]
+Arch = " 󰣇 "
+Ubuntu = " 󰕈 "
+Debian = " 󰣚 "
+Fedora = " 󰣛 "
+Macos = " 󰀵 "
+Windows = " 󰖳 "
+
+# Username/Hostname (GhostKellz branding)
+[username]
+show_always = true
+style_user = "bg:17 fg:122"
+style_root = "bg:17 fg:196"
+format = "[ 󰊠 GhostKellz.sh 󰊠 ]($style)"
+
+# Directory
+[directory]
+style = "bg:39 fg:255"
+format = "[  $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+truncate_to_repo = true
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+"Developer" = "󰲋 "
+"projects" = "󰲋 "
+
+# Git branch
+[git_branch]
+symbol = " "
+style = "bg:64 fg:232"
+format = "[ $symbol$branch ]($style)"
+
+# Git status
+[git_status]
+style = "bg:64 fg:232"
+format = "[$all_status$ahead_behind ]($style)"
+conflicted = "🏳 "
+ahead = "⇡${count} "
+behind = "⇣${count} "
+diverged = "⇕⇡${ahead_count}⇣${behind_count} "
+up_to_date = "✓ "
+untracked = "? "
+stashed = "$ "
+modified = "! "
+staged = "+ "
+renamed = "» "
+deleted = "✘ "
+
+# Fill (spacer between left and right)
+[fill]
+symbol = " "
+
+# Status (exit code)
+[status]
+disabled = false
+style = "bg:196 fg:255"
+format = "[ $symbol$status ]($style)"
+symbol = "✘ "
+success_symbol = ""
+not_executable_symbol = "🚫 "
+not_found_symbol = "🔍 "
+sigint_symbol = "🧱 "
+signal_symbol = "⚡ "
+
+# Command duration
+[cmd_duration]
+min_time = 1000
+style = "bg:214 fg:232"
+format = "[  $duration ]($style)"
+
+# Node.js
+[nodejs]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Rust
+[rust]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Go
+[golang]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Python
+[python]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+pyenv_version_name = true
+
+# Java
+[java]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Ruby
+[ruby]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Lua
+[lua]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# PHP
+[php]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol($version) ]($style)"
+
+# Kubernetes
+[kubernetes]
+symbol = "☸ "
+style = "bg:33 fg:255"
+format = "[ $symbol$context ]($style)"
+disabled = false
+
+[kubernetes.context_aliases]
+"dev.local.cluster.k8s" = "dev"
+"production.k8s.cluster" = "prod"
+
+# AWS
+[aws]
+symbol = "  "
+style = "bg:33 fg:255"
+format = "[ $symbol($profile )(\($region\) )]($style)"
+
+# Time
+[time]
+disabled = false
+time_format = "%I:%M %p"
+style = "bg:237 fg:255"
+format = "[  $time ]($style)"
+
+# Line break
+[line_break]
+disabled = false
+
+# Character (prompt symbol)
+[character]
+success_symbol = "[❯](bold #7FFFD4)"  # Aquamarine
+error_symbol = "[❯](bold #ff757f)"     # Red
+vimcmd_symbol = "[❮](bold #7FFFD4)"
+
+# Additional language/tool support
+[docker_context]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol$context ]($style)"
+
+[terraform]
+symbol = "󱁢 "
+style = "bg:33 fg:255"
+format = "[ $symbol$workspace ]($style)"
+
+[package]
+symbol = "󰏗 "
+style = "bg:118 fg:232"
+format = "[ $symbol$version ]($style)"
+
+[nix_shell]
+symbol = " "
+style = "bg:118 fg:232"
+format = "[ $symbol$state ]($style)"

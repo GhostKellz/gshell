@@ -1,0 +1,172 @@
+-- Kubectl Plugin for GShell
+-- Kubernetes cluster management shortcuts
+
+if not command_exists("kubectl") then
+    print("⚠️  Kubectl plugin requires kubectl to be installed")
+    return false
+end
+
+-- ── Core kubectl Commands ─────────────────────────────────────
+alias("k", "kubectl")
+alias("kc", "kubectl")
+
+-- ── Get Resources ─────────────────────────────────────────────
+alias("kg", "kubectl get")
+alias("kgp", "kubectl get pods")
+alias("kgpa", "kubectl get pods -A")
+alias("kgd", "kubectl get deployments")
+alias("kgs", "kubectl get services")
+alias("kgsvc", "kubectl get svc")
+alias("kgn", "kubectl get nodes")
+alias("kgns", "kubectl get namespaces")
+alias("kgi", "kubectl get ingress")
+alias("kgcm", "kubectl get configmaps")
+alias("kgsec", "kubectl get secrets")
+alias("kgpv", "kubectl get pv")
+alias("kgpvc", "kubectl get pvc")
+
+-- Get with watch
+alias("kgpw", "kubectl get pods -w")
+alias("kgdw", "kubectl get deployments -w")
+
+-- ── Describe Resources ────────────────────────────────────────
+alias("kd", "kubectl describe")
+alias("kdp", "kubectl describe pod")
+alias("kdd", "kubectl describe deployment")
+alias("kds", "kubectl describe service")
+alias("kdn", "kubectl describe node")
+
+-- ── Delete Resources ──────────────────────────────────────────
+alias("kdel", "kubectl delete")
+alias("kdelp", "kubectl delete pod")
+alias("kdeld", "kubectl delete deployment")
+alias("kdels", "kubectl delete service")
+
+-- ── Logs ──────────────────────────────────────────────────────
+alias("kl", "kubectl logs")
+alias("klf", "kubectl logs -f")
+alias("klp", "kubectl logs -p")  -- Previous container
+
+-- ── Execute/Debug ─────────────────────────────────────────────
+alias("kex", "kubectl exec -it")
+alias("kexec", "kubectl exec -it")
+alias("ksh", "kubectl exec -it")
+
+-- ── Apply/Edit ────────────────────────────────────────────────
+alias("ka", "kubectl apply -f")
+alias("kaf", "kubectl apply -f")
+alias("ke", "kubectl edit")
+alias("kep", "kubectl edit pod")
+alias("ked", "kubectl edit deployment")
+
+-- ── Context/Namespace ─────────────────────────────────────────
+alias("kctx", "kubectl config current-context")
+alias("kcon", "kubectl config use-context")
+alias("kns", "kubectl config set-context --current --namespace")
+alias("kgctx", "kubectl config get-contexts")
+
+-- ── Port Forward ──────────────────────────────────────────────
+alias("kpf", "kubectl port-forward")
+
+-- ── Rollout ───────────────────────────────────────────────────
+alias("kroll", "kubectl rollout")
+alias("krollr", "kubectl rollout restart")
+alias("krolls", "kubectl rollout status")
+alias("krollu", "kubectl rollout undo")
+
+-- ── Top (Resource Usage) ──────────────────────────────────────
+alias("ktop", "kubectl top")
+alias("ktopn", "kubectl top nodes")
+alias("ktopp", "kubectl top pods")
+
+-- ── Scale ─────────────────────────────────────────────────────
+alias("kscale", "kubectl scale")
+
+-- ── Helper Functions ──────────────────────────────────────────
+-- Get all pods in all namespaces with custom format
+function kpods()
+    exec("kubectl get pods -A -o wide")
+end
+
+-- Get all resources in current namespace
+function kall()
+    exec("kubectl get all")
+end
+
+-- Get all resources in all namespaces
+function kalla()
+    exec("kubectl get all -A")
+end
+
+-- Shell into a pod (first container)
+function kshell(pod_name)
+    if not pod_name then
+        print("Usage: kshell <pod_name>")
+        return
+    end
+
+    -- Try bash first, fallback to sh
+    exec("kubectl exec -it " .. pod_name .. " -- bash || kubectl exec -it " .. pod_name .. " -- sh")
+end
+
+-- Get pod logs with tail
+function klogs(pod_name, lines)
+    if not pod_name then
+        print("Usage: klogs <pod_name> [lines]")
+        return
+    end
+
+    local tail_lines = lines or "100"
+    exec("kubectl logs " .. pod_name .. " --tail=" .. tail_lines)
+end
+
+-- Follow logs for a pod
+function kfollow(pod_name)
+    if not pod_name then
+        print("Usage: kfollow <pod_name>")
+        return
+    end
+
+    exec("kubectl logs -f " .. pod_name)
+end
+
+-- Delete all pods in current namespace
+function kdelall()
+    exec("kubectl delete pods --all")
+end
+
+-- Get current context and namespace
+function kinfo()
+    local ctx = exec("kubectl config current-context")
+    local ns = exec("kubectl config view --minify --output 'jsonpath={..namespace}'")
+
+    print("Context: " .. (ctx or "unknown"))
+    print("Namespace: " .. (ns or "default"))
+end
+
+-- Port forward with common patterns
+function kforward(pod_or_svc, port)
+    if not pod_or_svc or not port then
+        print("Usage: kforward <pod_or_service> <port>")
+        print("Example: kforward my-app 8080")
+        return
+    end
+
+    exec("kubectl port-forward " .. pod_or_svc .. " " .. port .. ":" .. port)
+end
+
+-- Quick debug pod
+function kdebug()
+    print("Creating debug pod...")
+    exec("kubectl run debug-pod --image=nicolaka/netshoot -it --rm -- /bin/bash")
+end
+
+-- Get events sorted by timestamp
+function kevents()
+    exec("kubectl get events --sort-by='.lastTimestamp'")
+end
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ Kubectl plugin loaded")
+print("  Try: kg, kgp, kl, kex, kctx, kinfo")
+return true

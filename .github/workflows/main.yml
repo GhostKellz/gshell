@@ -1,0 +1,172 @@
+name: GShell CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify Zig installation
+        run: |
+          zig version
+          echo "Zig path: $(which zig)"
+
+      - name: Build GShell (Debug)
+        run: |
+          zig build -Doptimize=Debug
+          echo "Debug build completed"
+
+      - name: Build GShell (Release)
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          echo "Release build completed"
+
+      - name: Run tests
+        run: |
+          zig build test --summary all
+          echo "All tests passed"
+
+      - name: Verify binary
+        run: |
+          ls -lh zig-out/bin/gshell
+          file zig-out/bin/gshell
+          ./zig-out/bin/gshell -c "echo 'CI test successful'"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gshell-${{ github.sha }}
+          path: |
+            zig-out/bin/gshell
+            assets/
+          retention-days: 7
+
+  lint:
+    name: Code Quality
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zig fmt check
+        run: |
+          zig fmt --check src/
+          echo "Code formatting verified"
+
+      - name: Check for TODOs
+        run: |
+          echo "=== TODOs found in codebase ==="
+          grep -r "TODO" src/ || echo "No TODOs found"
+
+  security:
+    name: Security Scan
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r -i "password\s*=\|api_key\s*=\|secret\s*=" src/; then
+            echo "⚠️ Potential hardcoded secrets found!"
+            exit 1
+          else
+            echo "✓ No hardcoded secrets detected"
+          fi
+
+      - name: Validate dependencies
+        run: |
+          echo "=== Dependencies from build.zig.zon ==="
+          cat build.zig.zon
+
+  networking:
+    name: Network Commands
+    runs-on: self-hosted
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: zig build
+
+      - name: Test net-test
+        run: |
+          echo "Testing net-test command..."
+          ./zig-out/bin/gshell -c "net-test google.com 443"
+
+      - name: Test net-resolve
+        run: |
+          echo "Testing net-resolve command..."
+          ./zig-out/bin/gshell -c "net-resolve google.com"
+
+      - name: Test net-fetch
+        run: |
+          echo "Testing net-fetch command..."
+          ./zig-out/bin/gshell -c "net-fetch https://api.github.com"
+
+  plugins:
+    name: Plugin System
+    runs-on: self-hosted
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: zig build
+
+      - name: Validate plugin structure
+        run: |
+          echo "Checking plugin assets..."
+          test -d assets/plugins/git
+          test -f assets/plugins/git/plugin.gza
+          test -f assets/plugins/git/manifest.toml
+          test -d assets/plugins/network
+          test -d assets/plugins/dev-tools
+          echo "✓ All plugin files present"
+
+      - name: Validate vivid themes
+        run: |
+          echo "Checking vivid themes..."
+          test -f assets/vivid/ghost-hacker-blue.yml
+          test -f assets/vivid/dracula.yml
+          echo "✓ Theme files present"
+
+      - name: Validate templates
+        run: |
+          echo "Checking configuration templates..."
+          test -f assets/templates/gshrc-ghostkellz
+          test -f assets/templates/starship-ghostkellz.toml
+          echo "✓ Template files present"
+
+  grammar:
+    name: Tree-sitter Grammar
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate grammar files
+        run: |
+          echo "Checking grammar structure..."
+          test -f grammar/grammar.js
+          test -f grammar/src/parser.c
+          test -f grammar/queries/highlights.scm
+          test -f grammar/package.json
+          echo "✓ Grammar files present"
+
+      - name: Verify parser size
+        run: |
+          ls -lh grammar/src/parser.c
+          echo "Parser.c ready for grove integration"

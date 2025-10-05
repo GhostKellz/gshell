@@ -1,0 +1,60 @@
+-- Example .gshrc configuration for GShell
+-- This file is executed on shell startup using Ghostlang
+
+print("Loading GShell configuration...")
+
+-- Environment variables
+setenv("EDITOR", "vim")
+setenv("PAGER", "less")
+
+-- Common aliases
+alias("ll", "ls -lah")
+alias("la", "ls -A")
+alias("l", "ls -CF")
+alias("gs", "git status")
+alias("gd", "git diff")
+alias("gp", "git pull")
+alias("gc", "git commit")
+alias("glog", "git log --oneline --graph --decorate")
+
+-- System aliases
+alias("update", "sudo apt update && sudo apt upgrade -y")
+alias("ports", "netstat -tulanp")
+alias("meminfo", "free -m -l -t")
+
+-- Directory shortcuts
+alias("proj", "cd ~/projects")
+alias("docs", "cd ~/Documents")
+alias("dl", "cd ~/Downloads")
+
+-- Enable Starship prompt (if installed)
+-- Uncomment to use:
+-- use_starship(true)
+
+-- Custom welcome message
+local user = getenv("USER")
+local hostname = getenv("HOSTNAME")
+if user and hostname then
+    print("Welcome, " .. user .. "@" .. hostname .. "!")
+end
+
+-- Check for updates marker file
+if path_exists("/tmp/gshell_update_available") then
+    print("⚠️  GShell update available! Run 'gshell --update'")
+end
+
+-- Auto-create directories if they don't exist
+local dirs = {"/tmp/gshell_logs", "/tmp/gshell_cache"}
+for i, dir in ipairs(dirs) do
+    if not path_exists(dir) then
+        exec("mkdir -p " .. dir)
+    end
+end
+
+-- Log session start
+local timestamp = os.date or function() return "unknown" end
+local log_entry = timestamp() .. " - Session started\\n"
+-- Note: Append mode not yet supported, this overwrites
+-- write_file("/tmp/gshell_logs/sessions.log", log_entry)
+
+print("Configuration loaded. Type 'alias' to see all aliases.")

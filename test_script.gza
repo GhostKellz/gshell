@@ -1,0 +1,36 @@
+-- GShell Ghostlang Test Script
+-- Tests basic Ghostlang integration
+
+-- Test 1: Simple arithmetic
+local result = 2 + 2
+print("Test 1: 2 + 2 = " .. result)
+
+-- Test 2: Conditionals
+local score = 85
+if score >= 90 then
+    print("Grade: A")
+elseif score >= 80 then
+    print("Grade: B")
+else
+    print("Grade: C")
+end
+
+-- Test 3: Loops
+print("Counting to 5:")
+for i = 1, 5 do
+    print(i)
+end
+
+-- Test 4: Functions
+function greet(name)
+    return "Hello, " .. name .. "!"
+end
+
+print(greet("World"))
+
+-- Test 5: Shell API functions (currently stubbed)
+print("\nTesting shell API:")
+exec("ls /tmp")
+cd("/tmp")
+print(getenv("PATH"))
+setenv("MY_VAR", "test_value")

@@ -41,6 +41,23 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const flash_dep = b.dependency("flash", .{ .target = target, .optimize = optimize });
+    const flare_dep = b.dependency("flare", .{ .target = target, .optimize = optimize });
+    const gcode_dep = b.dependency("gcode", .{ .target = target, .optimize = optimize });
+    const zsync_dep = b.dependency("zsync", .{ .target = target, .optimize = optimize });
+    const zigzag_dep = b.dependency("zigzag", .{ .target = target, .optimize = optimize });
+    const zlog_dep = b.dependency("zlog", .{ .target = target, .optimize = optimize });
+    const zqlite_dep = b.dependency("zqlite", .{ .target = target, .optimize = optimize });
+    const ghostlang_dep = b.dependency("ghostlang", .{ .target = target, .optimize = optimize });
+    mod.addImport("flash", flash_dep.module("flash"));
+    mod.addImport("flare", flare_dep.module("flare"));
+    mod.addImport("gcode", gcode_dep.module("gcode"));
+    mod.addImport("zsync", zsync_dep.module("zsync"));
+    mod.addImport("zigzag", zigzag_dep.module("zigzag"));
+    mod.addImport("zlog", zlog_dep.module("zlog"));
+    mod.addImport("zqlite", zqlite_dep.module("zqlite"));
+    mod.addImport("ghostlang", ghostlang_dep.module("ghostlang"));
+
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
     // to the module defined above, it's sometimes preferable to split business
@@ -79,6 +96,14 @@ pub fn build(b: *std.Build) void {
                 // can be extremely useful in case of collisions (which can happen
                 // importing modules from different packages).
                 .{ .name = "gshell", .module = mod },
+                .{ .name = "flash", .module = flash_dep.module("flash") },
+                .{ .name = "flare", .module = flare_dep.module("flare") },
+                .{ .name = "gcode", .module = gcode_dep.module("gcode") },
+                .{ .name = "zsync", .module = zsync_dep.module("zsync") },
+                .{ .name = "zigzag", .module = zigzag_dep.module("zigzag") },
+                .{ .name = "zlog", .module = zlog_dep.module("zlog") },
+                .{ .name = "zqlite", .module = zqlite_dep.module("zqlite") },
+                .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
             },
         }),
     });

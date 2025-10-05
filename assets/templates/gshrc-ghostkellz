@@ -1,0 +1,130 @@
+-- GShell Configuration - GhostKellz Edition
+-- ~/.gshrc - Main configuration file
+--
+-- This config replicates your zsh setup with:
+-- - Starship prompt with p10k-like styling
+-- - Vivid color theming (ghost-hacker-blue)
+-- - GhostPlug plugins (git, network, dev-tools)
+-- - CLI tool integrations (zoxide, direnv, fzf)
+
+print("⚡ Loading GShell configuration...")
+
+-- ── Environment Variables ─────────────────────────────────────
+-- Note: dev-tools plugin will auto-detect and set EDITOR (grim > nvim > vim)
+setenv("PAGER", "less -R")
+
+-- ── Vivid Theme (LS_COLORS) ────────────────────────────────────
+-- Load ghost-hacker-blue theme for file listing colors
+-- Other bundled themes: dracula, tokyonight-moon/night/storm
+if command_exists("vivid") then
+    local theme = getenv("GSHELL_VIVID_THEME") or "ghost-hacker-blue"
+    local vivid_output = exec("vivid generate " .. theme)
+    if vivid_output then
+        setenv("LS_COLORS", vivid_output)
+        print("✓ Vivid theme: " .. theme)
+    end
+end
+
+-- ── Prompt Configuration ───────────────────────────────────────
+-- Option 1: Starship (recommended - works now)
+use_starship(true)
+print("✓ Starship prompt enabled")
+
+-- Option 2: GPPrompt (native Zig engine - Beta)
+-- Uncomment to use GPPrompt instead of Starship:
+-- use_prompt("gprompt:ghostkellz")
+
+-- ── GhostPlug Plugins ──────────────────────────────────────────
+-- Core plugins (once implemented):
+-- enable_plugin("git")        -- Git aliases (gcm, gaa, gps)
+-- enable_plugin("docker")     -- Docker shortcuts
+-- enable_plugin("kubectl")    -- K8s management
+-- enable_plugin("network")    -- Network tools (pgd, p8, myip)
+-- enable_plugin("dev-tools")  -- Dev aliases (vi=nvim, ls=eza)
+-- enable_plugin("system")     -- System utilities
+
+-- Manual aliases for now:
+alias("vi", "nvim")
+alias("vim", "nvim")
+
+-- Git aliases
+alias("gcm", "git commit -m")
+alias("gaa", "git add .")
+alias("gps", "git push")
+alias("gpl", "git pull")
+alias("gs", "git status")
+alias("gd", "git diff")
+
+-- Network aliases
+alias("pgd", "ping google.com")
+alias("p8", "ping 8.8.8.8")
+alias("p1", "ping 1.1.1.1")
+alias("myip", "curl ifconfig.me")
+alias("localip", "ip a | grep inet")
+
+-- eza aliases (if available)
+if command_exists("eza") or command_exists("exa") then
+    alias("ls", "eza --icons --group-directories-first")
+    alias("ll", "eza -lah --icons --group-directories-first")
+    alias("la", "eza -A --icons --group-directories-first")
+    alias("l", "eza -CF --icons")
+    alias("dotfiles", "eza -a --icons --group-directories-first | grep '^\\.'")
+end
+
+-- ── CLI Tool Integrations ──────────────────────────────────────
+-- Zoxide (smart cd replacement)
+if command_exists("zoxide") then
+    exec("eval \"$(zoxide init gshell)\"")
+    print("✓ zoxide loaded")
+end
+
+-- Direnv (auto-load environments)
+if command_exists("direnv") then
+    exec("eval \"$(direnv hook gshell)\"")
+    print("✓ direnv loaded")
+end
+
+-- FZF (fuzzy finder)
+if path_exists(getenv("HOME") .. "/.fzf.gshell") then
+    exec("source ~/.fzf.gshell")
+    print("✓ fzf loaded")
+end
+
+-- ── Syntax Highlighting Colors ─────────────────────────────────
+-- GShell has built-in syntax highlighting
+-- Match ghost-hacker-blue color scheme:
+-- set_highlight_color("command", "#7FFFD4")    -- Aquamarine
+-- set_highlight_color("builtin", "#98ff98")    -- Mint green
+-- set_highlight_color("alias", "#98ff98")      -- Mint green
+-- set_highlight_color("string", "#c3e88d")     -- Light green
+-- set_highlight_color("error", "#ff757f")      -- Red
+
+-- ── History Configuration ──────────────────────────────────────
+set_history_size(10000)
+set_history_file(getenv("HOME") .. "/.gshell_history")
+
+-- ── Custom Functions ───────────────────────────────────────────
+function reload()
+    exec("exec gshell")
+end
+
+function update()
+    if command_exists("pacman") then
+        exec("sudo pacman -Syu --noconfirm")
+    elseif command_exists("apt") then
+        exec("sudo apt update && sudo apt upgrade -y")
+    end
+end
+
+-- ── Modular Config Loader ──────────────────────────────────────
+-- Load additional configs from ~/.config/gshell/rc.d/*.gza
+local config_dir = getenv("HOME") .. "/.config/gshell/rc.d"
+if path_exists(config_dir) then
+    local configs = list_files(config_dir, "*.gza")
+    for _, config in ipairs(configs) do
+        exec("source " .. config)
+    end
+end
+
+-- ──────────────────────────────────────────────────────────────
+print("✓ GShell ready! Type 'alias' to see all aliases.")

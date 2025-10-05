@@ -1,0 +1,13 @@
+[plugin]
+name = "system"
+version = "1.0.0"
+description = "System utilities and administration shortcuts"
+author = "GShell Team"
+license = "MIT"
+
+[requirements]
+commands = []
+
+[config]
+show_system_info = true
+enable_power_commands = false

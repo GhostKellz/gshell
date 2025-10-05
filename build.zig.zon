@@ -32,35 +32,42 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
-        //.example = .{
-        //    // When updating this field to a new URL, be sure to delete the corresponding
-        //    // `hash`, otherwise you are communicating that you expect to find the old hash at
-        //    // the new URL. If the contents of a URL change this will result in a hash mismatch
-        //    // which will prevent zig from using it.
-        //    .url = "https://example.com/foo.tar.gz",
-        //
-        //    // This is computed from the file contents of the directory of files that is
-        //    // obtained after fetching `url` and applying the inclusion rules given by
-        //    // `paths`.
-        //    //
-        //    // This field is the source of truth; packages do not come from a `url`; they
-        //    // come from a `hash`. `url` is just one of many possible mirrors for how to
-        //    // obtain a package matching this `hash`.
-        //    //
-        //    // Uses the [multihash](https://multiformats.io/multihash/) format.
-        //    .hash = "...",
-        //
-        //    // When this is provided, the package is found in a directory relative to the
-        //    // build root. In this case the package's hash is irrelevant and therefore not
-        //    // computed. This field and `url` are mutually exclusive.
-        //    .path = "foo",
-        //
-        //    // When this is set to `true`, a package is declared to be lazily
-        //    // fetched. This makes the dependency only get fetched if it is
-        //    // actually used.
-        //    .lazy = false,
-        //},
+        .zsync = .{
+            .url = "https://github.com/ghostkellz/zsync/archive/refs/heads/main.tar.gz",
+            .hash = "zsync-0.5.4-KAuheZ4THQAlN32uBKm76ezT7dPT6rvj4ll56NiA9z9M",
+        },
+        .flash = .{
+            .url = "https://github.com/ghostkellz/flash/archive/refs/heads/main.tar.gz",
+            .hash = "flash-0.2.4-dnj73-p7BQAfNq4cL_oklPQOaNDwVih2JNa4t4dVtJ-K",
+        },
+        .flare = .{
+            .url = "https://github.com/ghostkellz/flare/archive/refs/heads/main.tar.gz",
+            .hash = "flare-0.0.0-NK4JaX9eAQCgRuIiDBZr6uSz8D2DhSeeWswotvCbUeG_",
+        },
+        .zigzag = .{
+            .url = "https://github.com/ghostkellz/zigzag/archive/refs/heads/main.tar.gz",
+            .hash = "zigzag-0.0.0-NmTasAy9BwCB8FS-Xy7xxUP-6qvbndLOLarVZLVTs2X-",
+        },
+        .phantom = .{
+            .url = "https://github.com/ghostkellz/phantom/archive/refs/heads/main.tar.gz",
+            .hash = "phantom-0.4.0-E0eWBP5cEQBPR2T7RKXS3Yg25YbimrW3N4zSdVn92Vgh",
+        },
+        .zlog = .{
+            .url = "https://github.com/ghostkellz/zlog/archive/refs/heads/main.tar.gz",
+            .hash = "zlog-0.0.0-kS0sWOK_AQAagIAxKh99G_c5HSoMBuNOlMoDJpcnXbhD",
+        },
+        .zqlite = .{
+            .url = "https://github.com/ghostkellz/zqlite/archive/refs/heads/main.tar.gz",
+            .hash = "zqlite-1.3.3-0Cdu4sGaEQBm1mhhNuEHELdVvITrCPCrL4y6NqHdra8j",
+        },
+        .ghostlang = .{
+            .url = "https://github.com/ghostkellz/ghostlang/archive/refs/heads/main.tar.gz",
+            .hash = "ghostlang-0.0.0-_SzSPeEiBAByrykH3P-vykb8yC4M3zNjDAbM_EAZzu6w",
+        },
+        .gcode = .{
+            .url = "https://github.com/ghostkellz/gcode/archive/refs/heads/main.tar.gz",
+            .hash = "gcode-0.1.0-AWO1LsMKDwDmRZJBAvEZSO_lEbpzF0Yi4V2yCkTRdJVD",
+        },
     },
     // Specifies the set of files and directories that are included in this package.
     // Only files and directories listed here are included in the `hash` that
