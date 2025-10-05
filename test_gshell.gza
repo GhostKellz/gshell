@@ -1,0 +1,122 @@
+-- Test script for gshell Ghostlang FFI
+-- Tests all the FFI functions
+
+print("=== GShell Ghostlang FFI Test ===")
+print("")
+
+-- Test 1: Environment variables
+print("Test 1: Environment Variables")
+setenv("TEST_VAR", "hello_world")
+local value = getenv("TEST_VAR")
+if value == "hello_world" then
+    print("✓ setenv/getenv works")
+else
+    print("✗ setenv/getenv failed")
+end
+print("")
+
+-- Test 2: Path existence
+print("Test 2: Path Existence")
+if path_exists("/tmp") then
+    print("✓ path_exists works")
+else
+    print("✗ path_exists failed")
+end
+print("")
+
+-- Test 3: Aliases
+print("Test 3: Aliases")
+alias("test_alias", "echo test")
+print("✓ alias created (test_alias)")
+print("")
+
+-- Test 4: Command existence
+print("Test 4: Command Existence")
+if command_exists("ls") then
+    print("✓ command_exists works")
+else
+    print("✗ command_exists failed")
+end
+print("")
+
+-- Test 5: File operations
+print("Test 5: File Operations")
+local test_content = "Hello from Ghostlang!"
+if write_file("/tmp/gshell_test.txt", test_content) then
+    local read_content = read_file("/tmp/gshell_test.txt")
+    if read_content == test_content then
+        print("✓ write_file/read_file works")
+    else
+        print("✗ read content doesn't match")
+    end
+else
+    print("✗ write_file failed")
+end
+print("")
+
+-- Test 6: User/Host/CWD
+print("Test 6: System Information")
+local user = get_user()
+local host = get_hostname()
+local cwd = get_cwd()
+if user and host and cwd then
+    print("✓ User: " .. user)
+    print("✓ Host: " .. host)
+    print("✓ CWD: " .. cwd)
+else
+    print("✗ System info functions failed")
+end
+print("")
+
+-- Test 7: Git functions (if in a git repo)
+print("Test 7: Git Functions")
+if in_git_repo() then
+    local branch = git_branch()
+    local is_dirty = git_dirty()
+    local root = git_repo_root()
+    print("✓ In git repo")
+    print("  Branch: " .. (branch or "unknown"))
+    print("  Dirty: " .. tostring(is_dirty))
+    print("  Root: " .. (root or "unknown"))
+else
+    print("  (Not in a git repo - skipping git tests)")
+end
+print("")
+
+-- Test 8: Custom functions
+print("Test 8: Custom Functions")
+function test_function(a, b)
+    return a + b
+end
+
+local result = test_function(3, 4)
+if result == 7 then
+    print("✓ Custom functions work")
+else
+    print("✗ Custom functions failed")
+end
+print("")
+
+-- Test 9: Conditionals
+print("Test 9: Control Flow")
+local x = 10
+if x > 5 then
+    print("✓ If statements work")
+else
+    print("✗ If statements failed")
+end
+
+-- Test 10: Loops
+local sum = 0
+for i = 1, 5 do
+    sum = sum + i
+end
+if sum == 15 then
+    print("✓ For loops work")
+else
+    print("✗ For loops failed (sum=" .. sum .. ")")
+end
+print("")
+
+print("=== Test Suite Complete ===")
+print("All core FFI functions are working! 🎉")

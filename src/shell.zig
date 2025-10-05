@@ -115,20 +115,33 @@ pub const Shell = struct {
         // Get home directory
         const home = std.posix.getenv("HOME") orelse return error.NoHomeDir;
 
-        // Build path to .gshrc
+        // Build path to .gshrc.gza (Ghostlang config)
         var path_buf: [std.fs.max_path_bytes]u8 = undefined;
-        const gshrc_path = try std.fmt.bufPrint(&path_buf, "{s}/.gshrc", .{home});
+        const gshrc_path = try std.fmt.bufPrint(&path_buf, "{s}/.gshrc.gza", .{home});
 
         // Check if file exists
         std.fs.cwd().access(gshrc_path, .{}) catch {
-            // File doesn't exist, that's ok
+            // Try legacy .gshrc (without .gza extension)
+            const legacy_path = try std.fmt.bufPrint(&path_buf, "{s}/.gshrc", .{home});
+            std.fs.cwd().access(legacy_path, .{}) catch {
+                // Neither file exists, that's ok
+                return;
+            };
+            // Use legacy path if it exists
+            const final_path = legacy_path;
+            if (self.script_engine) |*engine| {
+                engine.executeFile(final_path) catch |err| {
+                    std.log.warn("gshell: error executing {s}: {s}", .{ final_path, @errorName(err) });
+                    return err;
+                };
+            }
             return;
         };
 
-        // Execute the .gshrc file if we have a script engine
+        // Execute the .gshrc.gza file if we have a script engine
         if (self.script_engine) |*engine| {
             engine.executeFile(gshrc_path) catch |err| {
-                std.log.warn("gshell: error executing .gshrc: {s}", .{@errorName(err)});
+                std.log.warn("gshell: error executing .gshrc.gza: {s}", .{@errorName(err)});
                 return err;
             };
         }

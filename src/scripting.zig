@@ -129,6 +129,7 @@ pub const ScriptEngine = struct {
         try self.registerFunction("get_user", shellGetUser);
         try self.registerFunction("get_hostname", shellGetHostname);
         try self.registerFunction("get_cwd", shellGetCwd);
+        try self.registerFunction("enable_git_prompt", shellEnableGitPrompt);
     }
 
     fn registerFunction(self: *ScriptEngine, name: []const u8, func: anytype) !void {
@@ -774,6 +775,23 @@ fn shellGetCwd(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
     };
 
     return ghostlang.ScriptValue{ .string = cwd };
+}
+
+/// Enable git prompt segment: enable_git_prompt()
+fn shellEnableGitPrompt(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+
+    const engine = global_engine orelse return ghostlang.ScriptValue{ .boolean = false };
+
+    // Add git segment to the prompt engine
+    if (engine.prompt_engine) |prompt_eng| {
+        prompt_eng.addGitSegment(.left) catch {
+            return ghostlang.ScriptValue{ .boolean = false };
+        };
+        return ghostlang.ScriptValue{ .boolean = true };
+    }
+
+    return ghostlang.ScriptValue{ .boolean = false };
 }
 
 test "scripting engine initialization" {

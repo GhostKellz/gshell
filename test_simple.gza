@@ -1,0 +1,17 @@
+-- Simple test to verify Ghostlang script execution
+
+print("Hello from Ghostlang!")
+
+-- Test basic math
+var x = 3 + 4
+print("3 + 4 = ", x)
+
+-- Test strings
+var name = "GShell"
+print("Welcome to ", name)
+
+-- Test boolean
+var ready = true
+print("System ready: ", ready)
+
+print("Script executed successfully!")

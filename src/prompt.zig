@@ -1,4 +1,5 @@
 const std = @import("std");
+const prompt_git = @import("prompt_git.zig");
 
 pub const SegmentAlign = enum {
     left,
@@ -30,9 +31,13 @@ pub const PromptEngine = struct {
     segments: std.ArrayListUnmanaged(PromptSegment) = .{},
     use_starship: bool = false,
     starship_available: ?bool = null,
+    git_prompt: ?prompt_git.GitPrompt = null,
 
     pub fn init(allocator: std.mem.Allocator) PromptEngine {
-        return .{ .allocator = allocator };
+        return .{
+            .allocator = allocator,
+            .git_prompt = prompt_git.GitPrompt.init(allocator),
+        };
     }
 
     pub fn setUseStarship(self: *PromptEngine, use: bool) void {
@@ -44,10 +49,22 @@ pub const PromptEngine = struct {
             seg.deinit(self.allocator);
         }
         self.segments.deinit(self.allocator);
+        if (self.git_prompt) |*gp| {
+            gp.deinit();
+        }
     }
 
     pub fn addSegment(self: *PromptEngine, text: []const u8, alignment: SegmentAlign) !void {
         const owned = try self.allocator.dupe(u8, text);
+        try self.segments.append(self.allocator, .{
+            .text = owned,
+            .alignment = alignment,
+        });
+    }
+
+    pub fn addGitSegment(self: *PromptEngine, alignment: SegmentAlign) !void {
+        // Add a marker segment that will be replaced with git info
+        const owned = try self.allocator.dupe(u8, "${git}");
         try self.segments.append(self.allocator, .{
             .text = owned,
             .alignment = alignment,
@@ -69,11 +86,25 @@ pub const PromptEngine = struct {
         defer right_parts.deinit(self.allocator);
 
         for (self.segments.items) |seg| {
-            const expanded = try expandVariables(self.allocator, seg.text, ctx);
-            if (seg.alignment == .left) {
-                try left_parts.append(self.allocator, expanded);
+            // Check if this is a git segment
+            if (std.mem.eql(u8, seg.text, "${git}")) {
+                // Render git info if available
+                if (self.git_prompt) |*gp| {
+                    if (try gp.render(self.allocator, ctx.cwd)) |git_text| {
+                        if (seg.alignment == .left) {
+                            try left_parts.append(self.allocator, git_text);
+                        } else {
+                            try right_parts.append(self.allocator, git_text);
+                        }
+                    }
+                }
             } else {
-                try right_parts.append(self.allocator, expanded);
+                const expanded = try expandVariables(self.allocator, seg.text, ctx);
+                if (seg.alignment == .left) {
+                    try left_parts.append(self.allocator, expanded);
+                } else {
+                    try right_parts.append(self.allocator, expanded);
+                }
             }
         }
 
@@ -224,6 +255,9 @@ fn getVariable(allocator: std.mem.Allocator, name: []const u8, ctx: PromptContex
         return try std.fmt.allocPrint(allocator, "{d}", .{ctx.exit_code});
     } else if (std.mem.eql(u8, name, "jobs")) {
         return try std.fmt.allocPrint(allocator, "{d}", .{ctx.shell_state.jobs.items.len});
+    } else if (std.mem.eql(u8, name, "git")) {
+        // This is a placeholder - actual git rendering happens in PromptEngine.render
+        return try allocator.dupe(u8, "");
     }
     return try allocator.dupe(u8, "");
 }

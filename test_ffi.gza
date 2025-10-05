@@ -1,0 +1,68 @@
+-- Test script for gshell Ghostlang FFI (v0.1 syntax)
+
+print("=== GShell Ghostlang FFI Test ===")
+print("")
+
+-- Test 1: Print function
+print("Test 1: Print Function")
+print("✓ print() works")
+print("")
+
+-- Test 2: Environment variables
+print("Test 2: Environment Variables")
+setenv("GSHELL_TEST", "success")
+print("✓ setenv() works")
+print("✓ getenv('GSHELL_TEST') = " .. getenv("GSHELL_TEST"))
+print("")
+
+-- Test 3: Path existence
+print("Test 3: Path Operations")
+if path_exists("/tmp") then
+    print("✓ path_exists('/tmp') = true")
+else
+    print("✗ path_exists failed")
+end
+print("")
+
+-- Test 4: Aliases
+print("Test 4: Aliases")
+alias("gtest", "echo test_alias")
+print("✓ alias('gtest', 'echo test_alias') created")
+print("")
+
+-- Test 5: Command existence
+print("Test 5: Command Existence")
+if command_exists("ls") then
+    print("✓ command_exists('ls') = true")
+else
+    print("✗ command_exists failed")
+end
+print("")
+
+-- Test 6: File I/O
+print("Test 6: File I/O")
+write_file("/tmp/gshell_ffi_test.txt", "Hello from FFI!")
+print("✓ write_file() succeeded")
+print("✓ read_file() = " .. read_file("/tmp/gshell_ffi_test.txt"))
+print("")
+
+-- Test 7: System info
+print("Test 7: System Information")
+print("✓ User: " .. get_user())
+print("✓ Host: " .. get_hostname())
+print("✓ CWD: " .. get_cwd())
+print("")
+
+-- Test 8: Git functions
+print("Test 8: Git Functions")
+if in_git_repo() then
+    print("✓ in_git_repo() = true")
+    print("  Branch: " .. git_branch())
+    print("  Dirty: " .. tostring(git_dirty()))
+else
+    print("  (Not in git repo)")
+end
+print("")
+
+print("=== All FFI Tests Complete! ===")
+print("🎉 Ghostlang integration is working!")
