@@ -23,7 +23,7 @@ pub const ScriptEngine = struct {
         const config = ghostlang.EngineConfig{
             .allocator = allocator,
             .memory_limit = 50 * 1024 * 1024, // 50MB max per script (prevents DoS)
-            .execution_timeout_ms = 5000,      // 5 second timeout (prevents infinite loops)
+            .execution_timeout_ms = 5000, // 5 second timeout (prevents infinite loops)
             // allow_io defaults to true (needed for shell scripts)
             // allow_syscalls defaults to false (blocked for security)
             // deterministic defaults to false (allow time functions)
