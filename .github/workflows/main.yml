@@ -40,7 +40,7 @@ jobs:
         run: |
           ls -lh zig-out/bin/gshell
           file zig-out/bin/gshell
-          ./zig-out/bin/gshell -c "echo 'CI test successful'"
+          ./zig-out/bin/gshell --command "echo 'CI test successful'"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -103,17 +103,17 @@ jobs:
       - name: Test net-test
         run: |
           echo "Testing net-test command..."
-          ./zig-out/bin/gshell -c "net-test google.com 443"
+          ./zig-out/bin/gshell --command "net-test google.com 443"
 
       - name: Test net-resolve
         run: |
           echo "Testing net-resolve command..."
-          ./zig-out/bin/gshell -c "net-resolve google.com"
+          ./zig-out/bin/gshell --command "net-resolve google.com"
 
       - name: Test net-fetch
         run: |
           echo "Testing net-fetch command..."
-          ./zig-out/bin/gshell -c "net-fetch https://api.github.com"
+          ./zig-out/bin/gshell --command "net-fetch https://api.github.com"
 
   plugins:
     name: Plugin System
