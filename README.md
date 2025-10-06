@@ -126,15 +126,69 @@ return true
 
 ## 🚀 Quick Start
 
-### Install
+### Installation
+
+#### One-Liner Install (Recommended)
 ```bash
+curl -fsSL https://raw.githubusercontent.com/ghostkellz/gshell/main/install.sh | bash
+```
+
+#### Arch Linux (AUR)
+```bash
+# Using yay
+yay -S gshell
+
+# Using paru
+paru -S gshell
+
+# Manual
+git clone https://aur.archlinux.org/gshell.git
+cd gshell
+makepkg -si
+```
+
+#### From Source
+```bash
+# Clone repository
 git clone https://github.com/ghostkellz/gshell
 cd gshell
-zig build
+
+# Build
+zig build -Doptimize=ReleaseFast
+
+# Install
 sudo cp zig-out/bin/gshell /usr/local/bin/
 ```
 
-### Initialize Config
+#### As Zig Dependency
+Add to your `build.zig.zon`:
+```zig
+.dependencies = .{
+    .gshell = .{
+        .url = "https://github.com/ghostkellz/gshell/archive/refs/heads/main.tar.gz",
+        .hash = "...", // Run zig fetch to get hash
+    },
+},
+```
+
+Then fetch:
+```bash
+zig fetch --save https://github.com/ghostkellz/gshell/archive/refs/heads/main.tar.gz
+```
+
+### First Run
+```bash
+# Launch GShell - interactive setup wizard will appear
+gshell
+```
+
+The first time you run GShell, you'll see a beautiful **teal/mint themed** interactive wizard that will help you:
+1. Choose your prompt style (Starship, Git Prompt, or Minimal)
+2. Select a color theme (Ghost Hacker Blue, Mint Fresh, Teal Ocean, Dracula, Tokyo Night)
+3. Enable plugins (Git, Network, Docker, Dev Tools)
+4. Auto-generate your `~/.gshrc.gza` configuration
+
+### Manual Config Initialization
 ```bash
 # Create ~/.gshrc.gza with examples
 gshell init

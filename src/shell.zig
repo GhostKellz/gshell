@@ -9,6 +9,7 @@ const scripting = @import("scripting.zig");
 const completion_mod = @import("completion.zig");
 const history_mod = @import("history.zig");
 const setup_mod = @import("setup.zig");
+const permissions = @import("permissions.zig");
 
 const posix = std.posix;
 var sigint_flag = std.atomic.Value(bool).init(false);
@@ -60,12 +61,18 @@ pub const Shell = struct {
         var script_engine = scripting.ScriptEngine.init(allocator, &shell_state) catch null;
         const completion_engine = completion_mod.CompletionEngine.init(allocator);
 
-        // Initialize persistent history
+        // Initialize persistent history with permission checks
         const home = std.posix.getenv("HOME") orelse ".";
         const history_path = std.fmt.allocPrint(allocator, "{s}/.gshell_history", .{home}) catch null;
         var history_store: ?history_mod.HistoryStore = null;
         if (history_path) |path| {
             defer allocator.free(path);
+
+            // Security: Check and fix history file permissions (should be 600)
+            permissions.ensureSecureFile(allocator, path, true) catch |err| {
+                std.debug.print("Warning: Could not secure history file permissions: {s}\n", .{@errorName(err)});
+            };
+
             history_store = history_mod.HistoryStore.init(allocator, path) catch null;
         }
 
@@ -427,11 +434,22 @@ pub const Shell = struct {
         var action = posix.Sigaction{
             .handler = .{ .handler = signalHandler },
             .mask = std.mem.zeroes(posix.sigset_t),
-            .flags = 0,
+            .flags = posix.SA.RESTART, // Automatically restart system calls
         };
+
+        // Install handlers for shell control
         _ = posix.sigaction(posix.SIG.INT, &action, null);
         _ = posix.sigaction(posix.SIG.TSTP, &action, null);
         _ = posix.sigaction(posix.SIG.CHLD, &action, null);
+
+        // Ignore SIGQUIT in shell (Ctrl+\)
+        var ignore_action = posix.Sigaction{
+            .handler = .{ .handler = posix.SIG.IGN },
+            .mask = std.mem.zeroes(posix.sigset_t),
+            .flags = 0,
+        };
+        _ = posix.sigaction(posix.SIG.QUIT, &ignore_action, null);
+
         self.handlers_installed = true;
     }
 
@@ -444,6 +462,7 @@ pub const Shell = struct {
         _ = posix.sigaction(posix.SIG.INT, &action, null);
         _ = posix.sigaction(posix.SIG.TSTP, &action, null);
         _ = posix.sigaction(posix.SIG.CHLD, &action, null);
+        _ = posix.sigaction(posix.SIG.QUIT, &action, null);
         self.handlers_installed = false;
     }
 

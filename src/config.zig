@@ -1,6 +1,7 @@
 const std = @import("std");
 const flare = @import("flare");
 const testing = std.testing;
+const permissions = @import("permissions.zig");
 
 pub const LoadError = error{
     InvalidConfig,
@@ -143,6 +144,11 @@ pub fn load(allocator: std.mem.Allocator, options: LoadOptions) !ShellConfig {
     }
 
     const path = path_info.path.?;
+
+    // Security: Check and warn about config file permissions (should be 600)
+    permissions.ensureSecureFile(allocator, path, true) catch |err| {
+        std.debug.print("Warning: Could not secure config file permissions: {s}\n", .{@errorName(err)});
+    };
     const flare_options = flare.LoadOptions{
         .files = &.{.{ .path = path, .required = false, .format = .toml }},
         .env = .{ .prefix = env_prefix, .separator = env_separator },

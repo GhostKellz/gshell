@@ -1,4 +1,5 @@
 const std = @import("std");
+const security = @import("security.zig");
 
 pub const JobStatus = enum {
     running,
@@ -54,6 +55,9 @@ pub const ShellState = struct {
     }
 
     pub fn setEnv(self: *ShellState, key: []const u8, value: []const u8) !void {
+        // Security: Validate environment variable name and value
+        try security.validateEnvVarName(key);
+        try security.validateEnvVarValue(value);
         try self.env.put(key, value);
     }
 
@@ -99,6 +103,14 @@ pub const ShellState = struct {
     }
 
     pub fn setAlias(self: *ShellState, name: []const u8, value: []const u8) !void {
+        // Security: Validate alias name to prevent injection
+        try security.validateAliasName(name);
+
+        // Security: Validate alias value (command) length
+        if (value.len > 4096) {
+            return error.ValueTooLong;
+        }
+
         // Check if alias already exists and free old value
         if (self.aliases.fetchRemove(name)) |kv| {
             self.allocator.free(kv.key);

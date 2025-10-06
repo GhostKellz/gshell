@@ -19,8 +19,14 @@ pub const ScriptEngine = struct {
     prompt_engine: ?*PromptEngine = null,
 
     pub fn init(allocator: std.mem.Allocator, state: *ShellState) !ScriptEngine {
+        // Security: Configure Ghostlang with sandbox limits
         const config = ghostlang.EngineConfig{
             .allocator = allocator,
+            .memory_limit = 50 * 1024 * 1024, // 50MB max per script (prevents DoS)
+            .execution_timeout_ms = 5000,      // 5 second timeout (prevents infinite loops)
+            // allow_io defaults to true (needed for shell scripts)
+            // allow_syscalls defaults to false (blocked for security)
+            // deterministic defaults to false (allow time functions)
         };
 
         const engine = ghostlang.ScriptEngine.create(config) catch {

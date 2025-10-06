@@ -2,8 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const CompletionType = enum {
-    command,   // First word - scan PATH
-    file,      // Arguments - scan filesystem
+    command, // First word - scan PATH
+    file, // Arguments - scan filesystem
     directory, // Arguments ending with / - only dirs
 };
 

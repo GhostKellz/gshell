@@ -2,6 +2,7 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const state = @import("state.zig");
 const builtins = @import("builtins.zig");
+const security = @import("security.zig");
 
 pub const ExecOutcome = struct {
     status: i32,
@@ -219,15 +220,30 @@ fn runExternal(
 }
 
 fn readFileAll(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
+    // Security: Validate path to prevent directory traversal
+    try security.validateReadPath(allocator, path);
+
     var file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
     defer file.close();
     const size = try file.getEndPos();
+
+    // Security: Limit file size to 100MB to prevent memory exhaustion
+    if (size > 100 * 1024 * 1024) {
+        return error.FileTooLarge;
+    }
+
     var buffer = try allocator.alloc(u8, @as(usize, @intCast(size)));
     const read = try file.readAll(buffer);
     return buffer[0..read];
 }
 
 fn writeOutput(path: []const u8, mode: parser.RedirectionMode, data: []const u8) !void {
+    // Security: Validate path to prevent directory traversal and unsafe writes
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    try security.validateWritePath(allocator, path);
+
     var file = try std.fs.cwd().createFile(path, .{
         .truncate = mode == .truncate,
         .read = false,

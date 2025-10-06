@@ -1,6 +1,7 @@
 const std = @import("std");
 const state = @import("state.zig");
 const networking = @import("builtins/networking.zig");
+const help_system = @import("help.zig");
 
 pub const BuiltinResult = struct {
     status: i32 = 0,
@@ -27,6 +28,7 @@ pub fn lookup(name: []const u8) ?Handler {
     if (std.mem.eql(u8, name, "bg")) return bg;
     if (std.mem.eql(u8, name, "alias")) return alias;
     if (std.mem.eql(u8, name, "unalias")) return unalias;
+    if (std.mem.eql(u8, name, "help")) return help;
 
     // Networking utilities
     if (std.mem.eql(u8, name, "net-test")) return netTest;
@@ -262,6 +264,27 @@ fn netScan(ctx: *Context, args: []const []const u8) !BuiltinResult {
     };
     const result = try networking.netScan(&net_ctx, args);
     return BuiltinResult{ .status = result.status, .output = result.output };
+}
+
+fn help(ctx: *Context, args: []const []const u8) !BuiltinResult {
+    var stdout_file = std.fs.File.stdout();
+
+    if (args.len < 2) {
+        // Show overview
+        try help_system.printOverview(ctx.allocator, stdout_file);
+        return BuiltinResult{ .status = 0 };
+    }
+
+    const topic_name = args[1];
+    if (help_system.findTopic(topic_name)) |topic| {
+        try help_system.printHelp(ctx.allocator, stdout_file, topic);
+        return BuiltinResult{ .status = 0 };
+    } else {
+        const msg = try std.fmt.allocPrint(ctx.allocator, "help: no help topic for '{s}'\n\nRun 'help' to see all available topics.\n", .{topic_name});
+        defer ctx.allocator.free(msg);
+        try stdout_file.writeAll(msg);
+        return BuiltinResult{ .status = 1 };
+    }
 }
 
 test "echo builtin" {

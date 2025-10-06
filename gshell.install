@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# ANSI colors
+TEAL='\033[38;5;51m'
+MINT='\033[38;5;121m'
+WHITE='\033[1;37m'
+GRAY='\033[38;5;240m'
+RESET='\033[0m'
+
+post_install() {
+    echo
+    echo -e "${TEAL}╔═══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${TEAL}║                                                               ║${RESET}"
+    echo -e "${TEAL}║               ${MINT}✓ GShell installed successfully!${RESET}${TEAL}              ║${RESET}"
+    echo -e "${TEAL}║                                                               ║${RESET}"
+    echo -e "${TEAL}╚═══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+    echo -e "${WHITE}Quick Start:${RESET}"
+    echo
+    echo -e "${MINT}  1.${RESET} Launch GShell:"
+    echo -e "     ${GRAY}gshell${RESET}"
+    echo
+    echo -e "${MINT}  2.${RESET} Complete the interactive setup wizard"
+    echo
+    echo -e "${WHITE}Make it your default shell:${RESET}"
+    echo -e "  ${GRAY}# Add GShell to /etc/shells${RESET}"
+    echo -e "  ${GRAY}echo /usr/bin/gshell | sudo tee -a /etc/shells${RESET}"
+    echo
+    echo -e "  ${GRAY}# Change your default shell${RESET}"
+    echo -e "  ${GRAY}chsh -s /usr/bin/gshell${RESET}"
+    echo
+    echo -e "${WHITE}Optional Dependencies:${RESET}"
+    echo -e "  ${GRAY}pacman -S starship eza vivid bat fd ripgrep${RESET}"
+    echo
+    echo -e "${WHITE}Configuration:${RESET}"
+    echo -e "  ${GRAY}Templates: /usr/share/gshell/templates/${RESET}"
+    echo -e "  ${GRAY}Themes:    /usr/share/gshell/themes/${RESET}"
+    echo -e "  ${GRAY}Plugins:   /usr/share/gshell/plugins/${RESET}"
+    echo
+    echo -e "${WHITE}Documentation:${RESET}"
+    echo -e "  ${GRAY}https://github.com/ghostkellz/gshell${RESET}"
+    echo
+    echo -e "${TEAL}⚡ Enjoy your next generation shell experience!${RESET}"
+    echo
+}
+
+post_upgrade() {
+    echo
+    echo -e "${MINT}✓${RESET} GShell upgraded to version ${pkgver}"
+    echo
+    echo -e "${GRAY}Your existing configuration (~/.gshrc.gza) has been preserved.${RESET}"
+    echo
+    echo -e "${WHITE}What's New:${RESET}"
+    echo -e "  ${GRAY}Check the changelog at: https://github.com/ghostkellz/gshell/releases${RESET}"
+    echo
+}
+
+post_remove() {
+    echo
+    echo -e "${GRAY}GShell has been removed.${RESET}"
+    echo
+    echo -e "${WHITE}Your configuration files remain:${RESET}"
+    echo -e "  ${GRAY}~/.gshrc.gza${RESET}"
+    echo -e "  ${GRAY}~/.gshell_history${RESET}"
+    echo -e "  ${GRAY}~/.config/gshell/${RESET}"
+    echo
+    echo -e "${WHITE}To remove them manually:${RESET}"
+    echo -e "  ${GRAY}rm -rf ~/.gshrc.gza ~/.gshell_history ~/.config/gshell${RESET}"
+    echo
+    echo -e "${WHITE}If GShell was your default shell, change it back:${RESET}"
+    echo -e "  ${GRAY}chsh -s /bin/bash${RESET}"
+    echo
+}
