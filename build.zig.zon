@@ -38,11 +38,11 @@
         },
         .flash = .{
             .url = "https://github.com/ghostkellz/flash/archive/refs/heads/main.tar.gz",
-            .hash = "flash-0.2.4-dnj73-p7BQAfNq4cL_oklPQOaNDwVih2JNa4t4dVtJ-K",
+            .hash = "flash-0.3.1-dnj737-SBQDjkdsw5XOgIVxcWN0ZyJaDiXpUaoP7AcZ4",
         },
         .flare = .{
             .url = "https://github.com/ghostkellz/flare/archive/refs/heads/main.tar.gz",
-            .hash = "flare-0.0.0-NK4JaX9eAQCgRuIiDBZr6uSz8D2DhSeeWswotvCbUeG_",
+            .hash = "flare-0.1.0-NK4JafGMAQA8xE2ah8YBxO74sOkWrsQYTkWQ64D1PJVg",
         },
         .zigzag = .{
             .url = "https://github.com/ghostkellz/zigzag/archive/refs/heads/main.tar.gz",
@@ -50,11 +50,11 @@
         },
         .phantom = .{
             .url = "https://github.com/ghostkellz/phantom/archive/refs/heads/main.tar.gz",
-            .hash = "phantom-0.4.0-E0eWBP5cEQC_SGOHknfpEnmMbjbu4eYVa6oD5F0B5ELb",
+            .hash = "phantom-0.5.0-E0eWBBcxEgBL64hlBvhWs5mNWAkruSyJ_kSR5xTBsWM_",
         },
         .zlog = .{
             .url = "https://github.com/ghostkellz/zlog/archive/refs/heads/main.tar.gz",
-            .hash = "zlog-0.0.0-kS0sWOK_AQAagIAxKh99G_c5HSoMBuNOlMoDJpcnXbhD",
+            .hash = "zlog-0.1.0-kS0sWE9cCAC4TsztkA-l0QEYu3eUKXrHnHux5eDvs04J",
         },
         .zqlite = .{
             .url = "https://github.com/ghostkellz/zqlite/archive/refs/heads/main.tar.gz",
@@ -62,11 +62,15 @@
         },
         .ghostlang = .{
             .url = "https://github.com/ghostkellz/ghostlang/archive/refs/heads/main.tar.gz",
-            .hash = "ghostlang-0.0.0-_SzSPeEiBAByrykH3P-vykb8yC4M3zNjDAbM_EAZzu6w",
+            .hash = "ghostlang-0.1.2-_SzSPUeIBQCl0nmEmwYFvM61fyAA2AITvCBRJBXbtTc7",
         },
         .gcode = .{
             .url = "https://github.com/ghostkellz/gcode/archive/refs/heads/main.tar.gz",
             .hash = "gcode-0.1.0-AWO1LsMKDwDmRZJBAvEZSO_lEbpzF0Yi4V2yCkTRdJVD",
+        },
+        .zdoc = .{
+            .url = "https://github.com/ghostkellz/zdoc/archive/refs/heads/main.tar.gz",
+            .hash = "zdoc-0.1.0-ARcu66JtAgBnisiTly_5j-3ccJZtFh6XTDbV0bKPtKAE",
         },
     },
     // Specifies the set of files and directories that are included in this package.

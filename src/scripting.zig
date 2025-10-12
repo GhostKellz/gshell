@@ -3,6 +3,7 @@ const ghostlang = @import("ghostlang");
 const ShellState = @import("state.zig").ShellState;
 const PromptEngine = @import("prompt.zig").PromptEngine;
 const Executor = @import("executor.zig");
+const log = @import("logging.zig");
 
 pub const ScriptingError = error{
     EngineInitFailed,
@@ -55,25 +56,32 @@ pub const ScriptEngine = struct {
 
     /// Execute a .gza script file
     pub fn executeFile(self: *ScriptEngine, path: []const u8) !void {
-        const file = std.fs.cwd().openFile(path, .{}) catch {
+        const file = std.fs.cwd().openFile(path, .{}) catch |err| {
+            std.debug.print("[ERROR] Failed to open script file '{s}': {}\n", .{ path, err });
             return ScriptingError.ScriptLoadFailed;
         };
         defer file.close();
 
-        const stat = file.stat() catch {
+        const stat = file.stat() catch |err| {
+            std.debug.print("[ERROR] Failed to stat script file '{s}': {}\n", .{ path, err });
             return ScriptingError.ScriptLoadFailed;
         };
 
-        const content = self.allocator.alloc(u8, stat.size) catch {
+        const content = self.allocator.alloc(u8, stat.size) catch |err| {
+            std.debug.print("[ERROR] Failed to allocate memory for script '{s}': {}\n", .{ path, err });
             return ScriptingError.ScriptLoadFailed;
         };
         defer self.allocator.free(content);
 
-        _ = file.readAll(content) catch {
+        _ = file.readAll(content) catch |err| {
+            std.debug.print("[ERROR] Failed to read script file '{s}': {}\n", .{ path, err });
             return ScriptingError.ScriptLoadFailed;
         };
 
-        try self.executeString(content);
+        self.executeString(content) catch |err| {
+            std.debug.print("[ERROR] Failed to execute script '{s}': {}\n", .{ path, err });
+            return err;
+        };
     }
 
     /// Execute a Ghostlang script string
@@ -83,12 +91,15 @@ pub const ScriptEngine = struct {
         global_engine = self;
         defer global_engine = old_engine;
 
-        var script = self.engine.loadScript(source) catch {
+        var script = self.engine.loadScript(source) catch |err| {
+            std.debug.print("[ERROR] Failed to parse Ghostlang script: {}\n", .{err});
+            std.debug.print("Script content: {s}\n", .{source[0..@min(source.len, 200)]});
             return ScriptingError.ScriptLoadFailed;
         };
         defer script.deinit();
 
-        _ = script.run() catch {
+        _ = script.run() catch |err| {
+            std.debug.print("[ERROR] Script execution failed: {}\n", .{err});
             return ScriptingError.ScriptExecutionFailed;
         };
     }
@@ -277,6 +288,7 @@ fn shellPrint(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
                 stdout_file.writeAll("\n") catch {};
             },
             .function => stdout_file.writeAll("[function]\n") catch {},
+            .native_function => stdout_file.writeAll("[native_function]\n") catch {},
             .table => stdout_file.writeAll("[table]\n") catch {},
             .array => stdout_file.writeAll("[array]\n") catch {},
             .script_function => stdout_file.writeAll("[script_function]\n") catch {},
@@ -308,6 +320,7 @@ fn shellError(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
             },
             .string => |s| stderr_file.writeAll(s) catch {},
             .function => stderr_file.writeAll("[function]") catch {},
+            .native_function => stderr_file.writeAll("[native_function]") catch {},
             .table => stderr_file.writeAll("[table]") catch {},
             .array => stderr_file.writeAll("[array]") catch {},
             .script_function => stderr_file.writeAll("[script_function]") catch {},

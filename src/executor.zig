@@ -1,15 +1,50 @@
+/// GShell Command Executor
+/// Executes parsed commands and pipelines with support for:
+/// - External command execution
+/// - Built-in commands
+/// - Pipelines with stdin/stdout
+/// - I/O redirection
+/// - Environment variable expansion ($VAR)
+/// - Background jobs (&)
+/// - Alias expansion
 const std = @import("std");
 const parser = @import("parser.zig");
 const state = @import("state.zig");
 const builtins = @import("builtins.zig");
 const security = @import("security.zig");
+const log = @import("logging.zig");
 
+/// Result of command execution
 pub const ExecOutcome = struct {
+    /// Exit status code
     status: i32,
+    /// Captured stdout
     output: []const u8,
+    /// Job ID if running in background
     job_id: ?u32 = null,
 };
 
+/// Execute a parsed pipeline
+///
+/// @param allocator Memory allocator
+/// @param shell_state Current shell state with environment and aliases
+/// @param pipeline Parsed pipeline to execute
+/// @return ExecOutcome with status and output
+///
+/// Execution flow:
+/// 1. Expand environment variables in arguments ($VAR)
+/// 2. Resolve aliases to their definitions
+/// 3. Execute each command in sequence
+/// 4. Pipe output between commands
+/// 5. Handle I/O redirection (>, >>, <)
+/// 6. Manage background jobs (&)
+///
+/// Example:
+/// ```zig
+/// const pipeline = try parser.parseLine(allocator, "ls | grep txt");
+/// const outcome = try runPipeline(allocator, &shell_state, pipeline);
+/// std.debug.print("Status: {d}, Output: {s}\n", .{outcome.status, outcome.output});
+/// ```
 pub fn runPipeline(
     allocator: std.mem.Allocator,
     shell_state: *state.ShellState,
@@ -172,12 +207,16 @@ fn runExternal(
 
     proc.env_map = &shell_state.env;
 
-    try proc.spawn();
+    proc.spawn() catch |err| {
+        std.debug.print("[ERROR] Failed to spawn command '{s}': {}\n", .{ args[0], err });
+        return err;
+    };
 
     if (needs_input) {
         if (proc.stdin) |stdin_stream| {
             try stdin_stream.writeAll(input_data);
-            // Don't manually close - wait() will handle cleanup
+            // Close stdin so the child process gets EOF and can finish reading
+            stdin_stream.close();
         }
     }
 

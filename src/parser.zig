@@ -1,22 +1,51 @@
+/// GShell Command Parser
+/// Parses shell command lines into executable pipeline structures
+///
+/// Features:
+/// - Command tokenization with quote handling
+/// - Pipeline support (|)
+/// - I/O redirection (>, >>, <)
+/// - Background job support (&)
+/// - Environment variable expansion
+///
+/// Example:
+/// ```zig
+/// const pipeline = try parseLine(allocator, "cat file.txt | grep pattern > output.txt");
+/// defer pipeline.deinit(allocator);
+/// ```
 const std = @import("std");
+const log = @import("logging.zig");
 
+/// Redirection mode for stdout
 pub const RedirectionMode = enum {
+    /// No redirection
     none,
+    /// Overwrite file (>)
     truncate,
+    /// Append to file (>>)
     append,
 };
 
+/// A single command with its arguments and redirections
 pub const Command = struct {
+    /// Command and arguments
     argv: [][]const u8,
+    /// Input file path (< file)
     stdin_file: ?[]const u8,
+    /// Output file path (> or >> file)
     stdout_file: ?[]const u8,
+    /// Output redirection mode
     stdout_mode: RedirectionMode,
 };
 
+/// A pipeline of commands connected by pipes
 pub const Pipeline = struct {
+    /// Array of commands in the pipeline
     commands: []Command,
+    /// true if pipeline should run in background (&)
     background: bool = false,
 
+    /// Free all memory associated with this pipeline
     pub fn deinit(self: Pipeline, allocator: std.mem.Allocator) void {
         for (self.commands) |cmd| {
             // Free each arg in argv
@@ -49,12 +78,36 @@ const Token = struct {
     value: []const u8,
 };
 
+/// Errors that can occur during parsing
 pub const ParseError = error{
+    /// Unexpected token in input
     UnexpectedToken,
+    /// Command expected but not found
     MissingCommand,
+    /// Redirection operator without target file
     MissingRedirectionTarget,
 };
 
+/// Parse a command line into a pipeline structure
+///
+/// @param allocator Memory allocator for the pipeline
+/// @param line Command line string to parse
+/// @return Pipeline structure with parsed commands
+///
+/// Example:
+/// ```zig
+/// const pipeline = try parseLine(allocator, "ls -la | grep txt");
+/// defer pipeline.deinit(allocator);
+/// ```
+///
+/// Supported syntax:
+/// - Commands: `command arg1 arg2`
+/// - Pipes: `cmd1 | cmd2 | cmd3`
+/// - Output redirect: `cmd > file` or `cmd >> file`
+/// - Input redirect: `cmd < file`
+/// - Background: `cmd &`
+/// - Quotes: `"quoted arg"` or `'quoted arg'`
+/// - Escape: `\` for escaping special chars
 pub fn parseLine(allocator: std.mem.Allocator, line: []const u8) !Pipeline {
     const trimmed = std.mem.trim(u8, line, " \t\n\r");
     if (trimmed.len == 0 or trimmed[0] == '#') {
@@ -64,7 +117,11 @@ pub fn parseLine(allocator: std.mem.Allocator, line: []const u8) !Pipeline {
     var arena_stream = std.ArrayListUnmanaged(Token){};
     defer arena_stream.deinit(allocator);
 
-    try tokenize(allocator, trimmed, &arena_stream);
+    tokenize(allocator, trimmed, &arena_stream) catch |err| {
+        std.debug.print("[ERROR] Failed to tokenize line: {}\n", .{err});
+        std.debug.print("Input: {s}\n", .{trimmed});
+        return err;
+    };
 
     if (arena_stream.items.len == 0) {
         return error.MissingCommand;

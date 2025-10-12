@@ -52,6 +52,7 @@ pub fn build(b: *std.Build) void {
     const zlog_dep = b.dependency("zlog", .{ .target = target, .optimize = optimize });
     const zqlite_dep = b.dependency("zqlite", .{ .target = target, .optimize = optimize });
     const ghostlang_dep = b.dependency("ghostlang", .{ .target = target, .optimize = optimize });
+    const zdoc_dep = b.dependency("zdoc", .{ .target = target, .optimize = optimize });
     mod.addImport("flash", flash_dep.module("flash"));
     mod.addImport("flare", flare_dep.module("flare"));
     mod.addImport("gcode", gcode_dep.module("gcode"));
@@ -60,6 +61,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("zlog", zlog_dep.module("zlog"));
     mod.addImport("zqlite", zqlite_dep.module("zqlite"));
     mod.addImport("ghostlang", ghostlang_dep.module("ghostlang"));
+    mod.addImport("zdoc", zdoc_dep.module("zdoc"));
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -107,6 +109,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "zlog", .module = zlog_dep.module("zlog") },
                 .{ .name = "zqlite", .module = zqlite_dep.module("zqlite") },
                 .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
+                .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
             },
         }),
     });
@@ -163,12 +166,36 @@ pub fn build(b: *std.Build) void {
     // A run step that will run the second test executable.
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
+    // Integration tests
+    const integration_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/integration_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "gshell", .module = mod },
+                .{ .name = "flash", .module = flash_dep.module("flash") },
+                .{ .name = "flare", .module = flare_dep.module("flare") },
+                .{ .name = "gcode", .module = gcode_dep.module("gcode") },
+                .{ .name = "zsync", .module = zsync_dep.module("zsync") },
+                .{ .name = "zigzag", .module = zigzag_dep.module("zigzag") },
+                .{ .name = "zlog", .module = zlog_dep.module("zlog") },
+                .{ .name = "zqlite", .module = zqlite_dep.module("zqlite") },
+                .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
+                .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
+            },
+        }),
+    });
+
+    const run_integration_tests = b.addRunArtifact(integration_tests);
+
     // A top level step for running all tests. dependOn can be called multiple
     // times and since the two run steps do not depend on one another, this will
     // make the two of them run in parallel.
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
+    test_step.dependOn(&run_integration_tests.step);
 
     // Just like flags, top level steps are also listed in the `--help` menu.
     //

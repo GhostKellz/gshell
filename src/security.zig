@@ -245,11 +245,12 @@ test "validateEnvVarName - valid names" {
     try validateEnvVarName("USER");
     try validateEnvVarName("MY_VAR");
     try validateEnvVarName("_private");
+    try validateEnvVarName("123"); // Numeric names are allowed for script arguments ($0, $1, etc.)
+    try validateEnvVarName("0"); // Script argument $0
 }
 
 test "validateEnvVarName - invalid names" {
     try std.testing.expectError(SecurityError.InvalidEnvVarName, validateEnvVarName(""));
-    try std.testing.expectError(SecurityError.InvalidEnvVarName, validateEnvVarName("123"));
     try std.testing.expectError(SecurityError.InvalidEnvVarName, validateEnvVarName("MY-VAR"));
     try std.testing.expectError(SecurityError.InvalidEnvVarName, validateEnvVarName("MY VAR"));
 }
