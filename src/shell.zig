@@ -10,6 +10,8 @@ const completion_mod = @import("completion.zig");
 const history_mod = @import("history.zig");
 const setup_mod = @import("setup.zig");
 const permissions = @import("permissions.zig");
+const highlight_mod = @import("highlight.zig");
+const command_validator = @import("command_validator.zig");
 
 const posix = std.posix;
 var sigint_flag = std.atomic.Value(bool).init(false);
@@ -41,6 +43,9 @@ pub const Shell = struct {
     history_store: ?history_mod.HistoryStore = null,
     script_engine: ?scripting.ScriptEngine = null,
     completion_engine: completion_mod.CompletionEngine,
+    highlighter: ?highlight_mod.Highlighter = null,
+    validator: ?command_validator.CommandValidator = null,
+    enable_highlighting: bool = true,
 
     pub fn init(allocator: std.mem.Allocator, config: config_mod.ShellConfig) !Shell {
         // Check for first run and setup
@@ -81,7 +86,19 @@ pub const Shell = struct {
             engine.setPromptEngine(&prompt_engine);
         }
 
-        return Shell{
+        // Initialize syntax highlighter (optional - gracefully handle failure)
+        var highlighter: ?highlight_mod.Highlighter = null;
+        if (config.interactive) {
+            highlighter = highlight_mod.Highlighter.init(allocator, "ghost-hacker-blue") catch null;
+        }
+
+        // Initialize command validator
+        var validator: ?command_validator.CommandValidator = null;
+        if (config.interactive) {
+            validator = command_validator.CommandValidator.init(allocator) catch null;
+        }
+
+        var shell = Shell{
             .allocator = allocator,
             .config = config,
             .state = shell_state,
@@ -89,7 +106,16 @@ pub const Shell = struct {
             .history_store = history_store,
             .script_engine = script_engine,
             .completion_engine = completion_engine,
+            .highlighter = highlighter,
+            .validator = validator,
         };
+
+        // Fix the state pointer in script_engine after moving shell_state into Shell
+        if (shell.script_engine) |*engine| {
+            engine.updateStatePointer(&shell.state);
+        }
+
+        return shell;
     }
 
     pub fn deinit(self: *Shell) void {
@@ -109,6 +135,12 @@ pub const Shell = struct {
             engine.deinit();
         }
         self.completion_engine.deinit();
+        if (self.highlighter) |*h| {
+            h.deinit();
+        }
+        if (self.validator) |*v| {
+            v.deinit();
+        }
         self.state.deinit();
         if (self.handlers_installed) {
             self.restoreDefaultSignals() catch {};
@@ -426,8 +458,33 @@ pub const Shell = struct {
     }
 
     fn execute(self: *Shell, line: []const u8, allocator: std.mem.Allocator) !executor.ExecOutcome {
+        // Check for && operator (sequential execution with short-circuit)
+        if (std.mem.indexOf(u8, line, "&&")) |_| {
+            return try self.executeAndChain(line, allocator);
+        }
+
         const pipeline = try parser.parseLine(allocator, line);
         return try executor.runPipeline(allocator, &self.state, pipeline);
+    }
+
+    fn executeAndChain(self: *Shell, line: []const u8, allocator: std.mem.Allocator) !executor.ExecOutcome {
+        var iter = std.mem.splitSequence(u8, line, "&&");
+        var last_outcome = executor.ExecOutcome{ .status = 0, .output = &[_]u8{} };
+
+        while (iter.next()) |cmd| {
+            const trimmed = std.mem.trim(u8, cmd, " \t\r\n");
+            if (trimmed.len == 0) continue;
+
+            const pipeline = try parser.parseLine(allocator, trimmed);
+            last_outcome = try executor.runPipeline(allocator, &self.state, pipeline);
+
+            // Short-circuit on failure
+            if (last_outcome.status != 0) {
+                break;
+            }
+        }
+
+        return last_outcome;
     }
 
     fn installSignalHandlers(self: *Shell) !void {
@@ -716,6 +773,8 @@ pub const Shell = struct {
                             buffer.items,
                             cursor,
                             rendered_width,
+                            allocator,
+                            if (self.highlighter) |*h| h else null,
                         );
                     } else {
                         // Multiple matches - complete common prefix
@@ -732,6 +791,8 @@ pub const Shell = struct {
                                 buffer.items,
                                 cursor,
                                 rendered_width,
+                                allocator,
+                                if (self.highlighter) |*h| h else null,
                             );
                         } else {
                             // Show available matches
@@ -793,14 +854,14 @@ pub const Shell = struct {
                 0x01 => { // Ctrl-A
                     if (cursor != 0) {
                         cursor = 0;
-                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                     }
                     continue;
                 },
                 0x05 => { // Ctrl-E
                     if (cursor != buffer.items.len) {
                         cursor = buffer.items.len;
-                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                     }
                     continue;
                 },
@@ -822,7 +883,7 @@ pub const Shell = struct {
                         std.mem.copyForwards(u8, buffer.items[prev .. old_len - remove_len], buffer.items[cursor..old_len]);
                         buffer.shrinkRetainingCapacity(old_len - remove_len);
                         cursor = prev;
-                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                     }
                     continue;
                 },
@@ -860,7 +921,7 @@ pub const Shell = struct {
                                         buffer.clearRetainingCapacity();
                                         try buffer.appendSlice(allocator, hist_item);
                                         cursor = buffer.items.len;
-                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                     }
                                 }
                             },
@@ -874,7 +935,7 @@ pub const Shell = struct {
                                         buffer.clearRetainingCapacity();
                                         try buffer.appendSlice(allocator, hist_item);
                                         cursor = buffer.items.len;
-                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                     } else {
                                         // Reached end of history, restore saved input
                                         history_pos = null;
@@ -883,7 +944,7 @@ pub const Shell = struct {
                                             try buffer.appendSlice(allocator, si);
                                         }
                                         cursor = buffer.items.len;
-                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                     }
                                 }
                             },
@@ -891,26 +952,26 @@ pub const Shell = struct {
                                 const next = gcode.findNextGrapheme(buffer.items, cursor);
                                 if (next != cursor) {
                                     cursor = next;
-                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                 }
                             },
                             'D' => { // Left arrow
                                 const prev = gcode.findPreviousGrapheme(buffer.items, cursor);
                                 if (prev != cursor) {
                                     cursor = prev;
-                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                 }
                             },
                             'H' => { // Home
                                 if (cursor != 0) {
                                     cursor = 0;
-                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                 }
                             },
                             'F' => { // End
                                 if (cursor != buffer.items.len) {
                                     cursor = buffer.items.len;
-                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                 }
                             },
                             '~' => {
@@ -921,7 +982,7 @@ pub const Shell = struct {
                                         const old_len = buffer.items.len;
                                         std.mem.copyForwards(u8, buffer.items[cursor .. old_len - remove_len], buffer.items[next..old_len]);
                                         buffer.shrinkRetainingCapacity(old_len - remove_len);
-                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
                                     }
                                 }
                             },
@@ -963,7 +1024,7 @@ pub const Shell = struct {
             }
             buffer.items[cursor] = ch;
             cursor += 1;
-            rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+            rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
         }
 
         return try buffer.toOwnedSlice(allocator);
@@ -1019,6 +1080,8 @@ fn rewriteInteractiveLine(
     buffer: []const u8,
     cursor: usize,
     previous_total_width: usize,
+    allocator: std.mem.Allocator,
+    highlighter: ?*highlight_mod.Highlighter,
 ) !usize {
     const line_width = prompt_width + gcode.stringWidth(buffer);
     const cursor_width = prompt_width + gcode.stringWidth(buffer[0..cursor]);
@@ -1026,7 +1089,14 @@ fn rewriteInteractiveLine(
     try stdout_file.writeAll("\r");
     try stdout_file.writeAll(prompt);
     if (buffer.len > 0) {
-        try stdout_file.writeAll(buffer);
+        // Use syntax highlighting if available
+        if (highlighter) |h| {
+            const highlighted = h.highlightAndRender(buffer) catch buffer;
+            defer if (highlighted.ptr != buffer.ptr) allocator.free(highlighted);
+            try stdout_file.writeAll(highlighted);
+        } else {
+            try stdout_file.writeAll(buffer);
+        }
     }
 
     if (line_width < previous_total_width) {
@@ -1125,14 +1195,14 @@ fn readLineInteractive(
             0x01 => { // Ctrl-A
                 if (cursor != 0) {
                     cursor = 0;
-                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                 }
                 continue;
             },
             0x05 => { // Ctrl-E
                 if (cursor != buffer.items.len) {
                     cursor = buffer.items.len;
-                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                 }
                 continue;
             },
@@ -1144,7 +1214,7 @@ fn readLineInteractive(
                     std.mem.copyForwards(u8, buffer.items[prev .. old_len - remove_len], buffer.items[cursor..old_len]);
                     buffer.shrinkRetainingCapacity(old_len - remove_len);
                     cursor = prev;
-                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                 }
                 continue;
             },
@@ -1170,26 +1240,26 @@ fn readLineInteractive(
                             const next = gcode.findNextGrapheme(buffer.items, cursor);
                             if (next != cursor) {
                                 cursor = next;
-                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                             }
                         },
                         'D' => { // Left arrow
                             const prev = gcode.findPreviousGrapheme(buffer.items, cursor);
                             if (prev != cursor) {
                                 cursor = prev;
-                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                             }
                         },
                         'H' => { // Home
                             if (cursor != 0) {
                                 cursor = 0;
-                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                             }
                         },
                         'F' => { // End
                             if (cursor != buffer.items.len) {
                                 cursor = buffer.items.len;
-                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                             }
                         },
                         '~' => {
@@ -1200,7 +1270,7 @@ fn readLineInteractive(
                                     const old_len = buffer.items.len;
                                     std.mem.copyForwards(u8, buffer.items[cursor .. old_len - remove_len], buffer.items[next..old_len]);
                                     buffer.shrinkRetainingCapacity(old_len - remove_len);
-                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+                                    rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
                                 }
                             }
                         },
@@ -1223,7 +1293,7 @@ fn readLineInteractive(
         }
         buffer.items[cursor] = ch;
         cursor += 1;
-        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width);
+        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, null);
     }
 
     return try buffer.toOwnedSlice(allocator);

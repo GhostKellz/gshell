@@ -53,6 +53,7 @@ pub fn build(b: *std.Build) void {
     const zqlite_dep = b.dependency("zqlite", .{ .target = target, .optimize = optimize });
     const ghostlang_dep = b.dependency("ghostlang", .{ .target = target, .optimize = optimize });
     const zdoc_dep = b.dependency("zdoc", .{ .target = target, .optimize = optimize });
+    const grove_dep = b.dependency("grove", .{ .target = target, .optimize = optimize });
     mod.addImport("flash", flash_dep.module("flash"));
     mod.addImport("flare", flare_dep.module("flare"));
     mod.addImport("gcode", gcode_dep.module("gcode"));
@@ -62,6 +63,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("zqlite", zqlite_dep.module("zqlite"));
     mod.addImport("ghostlang", ghostlang_dep.module("ghostlang"));
     mod.addImport("zdoc", zdoc_dep.module("zdoc"));
+    mod.addImport("grove", grove_dep.module("grove"));
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -110,6 +112,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "zqlite", .module = zqlite_dep.module("zqlite") },
                 .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
                 .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
+                .{ .name = "grove", .module = grove_dep.module("grove") },
             },
         }),
     });
@@ -183,6 +186,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "zqlite", .module = zqlite_dep.module("zqlite") },
                 .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
                 .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
+                .{ .name = "grove", .module = grove_dep.module("grove") },
             },
         }),
     });

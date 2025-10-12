@@ -54,6 +54,10 @@ pub const ScriptEngine = struct {
         self.prompt_engine = prompt_engine;
     }
 
+    pub fn updateStatePointer(self: *ScriptEngine, state: *ShellState) void {
+        self.state = state;
+    }
+
     /// Execute a .gza script file
     pub fn executeFile(self: *ScriptEngine, path: []const u8) !void {
         const file = std.fs.cwd().openFile(path, .{}) catch |err| {
@@ -257,6 +261,7 @@ fn shellSetEnv(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
         else => return ghostlang.ScriptValue{ .boolean = false },
     };
 
+    // EnvMap.put will handle duplication internally, so we can pass the ghostlang strings directly
     engine.state.setEnv(key_str, value_str) catch {
         return ghostlang.ScriptValue{ .boolean = false };
     };

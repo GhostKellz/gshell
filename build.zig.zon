@@ -72,6 +72,10 @@
             .url = "https://github.com/ghostkellz/zdoc/archive/refs/heads/main.tar.gz",
             .hash = "zdoc-0.1.0-ARcu66JtAgBnisiTly_5j-3ccJZtFh6XTDbV0bKPtKAE",
         },
+        .grove = .{
+            .url = "https://github.com/ghostkellz/grove/archive/refs/heads/main.tar.gz",
+            .hash = "grove-0.1.1-rGFsN9wr6QRA8itbDIdvhfNW5zGabtBbcwHEFCK3hNxB",
+        },
     },
     // Specifies the set of files and directories that are included in this package.
     // Only files and directories listed here are included in the `hash` that
@@ -85,6 +89,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
+        "grammar",
         // For example...
         //"LICENSE",
         //"README.md",

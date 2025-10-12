@@ -217,6 +217,8 @@ fn runExternal(
             try stdin_stream.writeAll(input_data);
             // Close stdin so the child process gets EOF and can finish reading
             stdin_stream.close();
+            // Set to null so wait() doesn't try to close it again
+            proc.stdin = null;
         }
     }
 
