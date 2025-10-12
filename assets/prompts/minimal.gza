@@ -1,0 +1,11 @@
+-- Minimal GPPrompt Theme
+-- Simple, fast, single-line prompt
+
+-- Disable GPPrompt (use simple segment-based rendering)
+gprompt_disable()
+
+-- Use basic git prompt
+enable_git_prompt()
+
+-- This gives a minimal prompt like:
+--   user@host ~/dir (main*) $

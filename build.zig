@@ -47,6 +47,7 @@ pub fn build(b: *std.Build) void {
     const flash_dep = b.dependency("flash", .{ .target = target, .optimize = optimize });
     const flare_dep = b.dependency("flare", .{ .target = target, .optimize = optimize });
     const gcode_dep = b.dependency("gcode", .{ .target = target, .optimize = optimize });
+    const zfont_dep = b.dependency("zfont", .{ .target = target, .optimize = optimize });
     const zsync_dep = b.dependency("zsync", .{ .target = target, .optimize = optimize });
     const zigzag_dep = b.dependency("zigzag", .{ .target = target, .optimize = optimize });
     const zlog_dep = b.dependency("zlog", .{ .target = target, .optimize = optimize });
@@ -57,6 +58,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("flash", flash_dep.module("flash"));
     mod.addImport("flare", flare_dep.module("flare"));
     mod.addImport("gcode", gcode_dep.module("gcode"));
+    mod.addImport("zfont", zfont_dep.module("zfont"));
     mod.addImport("zsync", zsync_dep.module("zsync"));
     mod.addImport("zigzag", zigzag_dep.module("zigzag"));
     mod.addImport("zlog", zlog_dep.module("zlog"));
@@ -82,7 +84,7 @@ pub fn build(b: *std.Build) void {
     // If neither case applies to you, feel free to delete the declaration you
     // don't need and to put everything under a single module.
     const exe = b.addExecutable(.{
-        .name = "gshell",
+        .name = "gsh",
         .root_module = b.createModule(.{
             // b.createModule defines a new module just like b.addModule but,
             // unlike b.addModule, it does not expose the module to consumers of
@@ -106,6 +108,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "flash", .module = flash_dep.module("flash") },
                 .{ .name = "flare", .module = flare_dep.module("flare") },
                 .{ .name = "gcode", .module = gcode_dep.module("gcode") },
+                .{ .name = "zfont", .module = zfont_dep.module("zfont") },
                 .{ .name = "zsync", .module = zsync_dep.module("zsync") },
                 .{ .name = "zigzag", .module = zigzag_dep.module("zigzag") },
                 .{ .name = "zlog", .module = zlog_dep.module("zlog") },
@@ -180,6 +183,7 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "flash", .module = flash_dep.module("flash") },
                 .{ .name = "flare", .module = flare_dep.module("flare") },
                 .{ .name = "gcode", .module = gcode_dep.module("gcode") },
+                .{ .name = "zfont", .module = zfont_dep.module("zfont") },
                 .{ .name = "zsync", .module = zsync_dep.module("zsync") },
                 .{ .name = "zigzag", .module = zigzag_dep.module("zigzag") },
                 .{ .name = "zlog", .module = zlog_dep.module("zlog") },

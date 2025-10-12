@@ -111,14 +111,25 @@ end
 -- ──────────────────────────────────────────────────────────────
 -- Prompt Configuration
 -- ──────────────────────────────────────────────────────────────
--- Use Starship prompt (if installed)
--- If starship is not installed, falls back to built-in prompt with git
-if command_exists("starship") then
-    use_starship(true)
-else
-    -- Built-in prompt with async git info
-    enable_git_prompt()
-end
+-- GPPrompt: Native PowerLevel10k-style prompt (recommended!)
+-- Features: Two-line layout, Nerd Font icons, Ghost Hacker Blue theme
+gprompt_enable()
+
+-- Alternatives:
+-- 1. Starship prompt (requires `starship` binary)
+--    if command_exists("starship") then
+--        gprompt_disable()
+--        use_starship(true)
+--    end
+--
+-- 2. Minimal built-in prompt
+--    gprompt_disable()
+--    enable_git_prompt()
+--
+-- 3. Load custom GPPrompt theme
+--    exec("source ~/.config/gshell/prompts/my-theme.gza")
+--
+-- Note: GPPrompt is built-in, no external dependencies!
 
 -- ──────────────────────────────────────────────────────────────
 -- Theme Configuration

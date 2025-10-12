@@ -151,6 +151,19 @@ pub const ScriptEngine = struct {
         try self.registerFunction("get_hostname", shellGetHostname);
         try self.registerFunction("get_cwd", shellGetCwd);
         try self.registerFunction("enable_git_prompt", shellEnableGitPrompt);
+
+        // GPPrompt (PowerLevel10k-style) functions
+        try self.registerFunction("gprompt_enable", shellGPromptEnable);
+        try self.registerFunction("gprompt_disable", shellGPromptDisable);
+        try self.registerFunction("gprompt_is_enabled", shellGPromptIsEnabled);
+
+        // Nerd Font icon helpers (using zfont's PowerLevel10k icon library)
+        try self.registerFunction("icon_get", shellIconGet);
+        try self.registerFunction("icon_arch", shellIconArch);
+        try self.registerFunction("icon_nodejs", shellIconNodeJs);
+        try self.registerFunction("icon_git_branch", shellIconGitBranch);
+        try self.registerFunction("icon_folder", shellIconFolder);
+        try self.registerFunction("icon_home", shellIconHome);
     }
 
     fn registerFunction(self: *ScriptEngine, name: []const u8, func: anytype) !void {
@@ -496,10 +509,26 @@ fn shellLoadVividTheme(args: []const ghostlang.ScriptValue) ghostlang.ScriptValu
 
     const engine = global_engine orelse return ghostlang.ScriptValue{ .boolean = false };
 
-    // Run: vivid generate <theme>
+    // Build path to theme file in assets/vivid/
+    const theme_path = std.fmt.allocPrint(
+        engine.allocator,
+        "assets/vivid/{s}.yml",
+        .{theme_name},
+    ) catch {
+        return ghostlang.ScriptValue{ .boolean = false };
+    };
+    defer engine.allocator.free(theme_path);
+
+    // Check if theme file exists
+    std.fs.cwd().access(theme_path, .{}) catch {
+        // Theme file not found
+        return ghostlang.ScriptValue{ .boolean = false };
+    };
+
+    // Run: vivid generate <path-to-theme>
     const result = std.process.Child.run(.{
         .allocator = engine.allocator,
-        .argv = &[_][]const u8{ "vivid", "generate", theme_name },
+        .argv = &[_][]const u8{ "vivid", "generate", theme_path },
     }) catch {
         return ghostlang.ScriptValue{ .boolean = false };
     };
@@ -816,6 +845,121 @@ fn shellEnableGitPrompt(args: []const ghostlang.ScriptValue) ghostlang.ScriptVal
     }
 
     return ghostlang.ScriptValue{ .boolean = false };
+}
+
+// ============================================================================
+// GPPrompt (PowerLevel10k) API Functions
+// ============================================================================
+
+/// Enable GhostKellz P10k-style prompt: gprompt_enable()
+fn shellGPromptEnable(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+
+    const engine = global_engine orelse return ghostlang.ScriptValue{ .boolean = false };
+
+    if (engine.prompt_engine) |prompt_eng| {
+        prompt_eng.setUseGhostKellz(true);
+        return ghostlang.ScriptValue{ .boolean = true };
+    }
+
+    return ghostlang.ScriptValue{ .boolean = false };
+}
+
+/// Disable GhostKellz P10k prompt: gprompt_disable()
+fn shellGPromptDisable(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+
+    const engine = global_engine orelse return ghostlang.ScriptValue{ .boolean = false };
+
+    if (engine.prompt_engine) |prompt_eng| {
+        prompt_eng.setUseGhostKellz(false);
+        return ghostlang.ScriptValue{ .boolean = true };
+    }
+
+    return ghostlang.ScriptValue{ .boolean = false };
+}
+
+/// Check if GPPrompt is enabled: gprompt_is_enabled()
+fn shellGPromptIsEnabled(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+
+    const engine = global_engine orelse return ghostlang.ScriptValue{ .boolean = false };
+
+    if (engine.prompt_engine) |prompt_eng| {
+        return ghostlang.ScriptValue{ .boolean = prompt_eng.use_ghostkellz };
+    }
+
+    return ghostlang.ScriptValue{ .boolean = false };
+}
+
+// ============================================================================
+// Nerd Font Icon Helpers (via zfont's PowerLevel10k library)
+// ============================================================================
+
+/// Get any icon by name: icon_get("LINUX_ARCH_ICON")
+fn shellIconGet(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    if (args.len < 1) return ghostlang.ScriptValue{ .nil = {} };
+
+    const icon_name = switch (args[0]) {
+        .string => |s| s,
+        else => return ghostlang.ScriptValue{ .nil = {} },
+    };
+
+    const engine = global_engine orelse return ghostlang.ScriptValue{ .nil = {} };
+
+    // Access zfont's PowerLevel10k icon library
+    const zfont = @import("zfont");
+    const ProgrammingFonts = zfont.ProgrammingFonts;
+
+    var prog_manager = ProgrammingFonts.ProgrammingFontManager.init(engine.allocator);
+    defer prog_manager.deinit();
+
+    var p10k = zfont.PowerLevel10k.init(engine.allocator, &prog_manager);
+    defer p10k.deinit();
+
+    if (p10k.getIcon(icon_name)) |icon| {
+        const owned = engine.allocator.dupe(u8, icon.symbol) catch {
+            return ghostlang.ScriptValue{ .nil = {} };
+        };
+        return ghostlang.ScriptValue{ .string = owned };
+    }
+
+    return ghostlang.ScriptValue{ .nil = {} };
+}
+
+/// Get Arch Linux icon: icon_arch()
+fn shellIconArch(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+    const fake_args = [_]ghostlang.ScriptValue{ghostlang.ScriptValue{ .string = "LINUX_ARCH_ICON" }};
+    return shellIconGet(&fake_args);
+}
+
+/// Get Node.js icon: icon_nodejs()
+fn shellIconNodeJs(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+    const fake_args = [_]ghostlang.ScriptValue{ghostlang.ScriptValue{ .string = "NODEJS_ICON" }};
+    return shellIconGet(&fake_args);
+}
+
+/// Get Git branch icon: icon_git_branch()
+fn shellIconGitBranch(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+    const fake_args = [_]ghostlang.ScriptValue{ghostlang.ScriptValue{ .string = "VCS_BRANCH_ICON" }};
+    return shellIconGet(&fake_args);
+}
+
+/// Get folder icon: icon_folder()
+fn shellIconFolder(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+    const fake_args = [_]ghostlang.ScriptValue{ghostlang.ScriptValue{ .string = "FOLDER_ICON" }};
+    return shellIconGet(&fake_args);
+}
+
+/// Get home directory icon: icon_home()
+fn shellIconHome(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
+    _ = args;
+    const fake_args = [_]ghostlang.ScriptValue{ghostlang.ScriptValue{ .string = "HOME_ICON" }};
+    return shellIconGet(&fake_args);
 }
 
 test "scripting engine initialization" {

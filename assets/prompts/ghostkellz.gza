@@ -1,0 +1,33 @@
+-- GhostKellz GPPrompt Theme
+-- PowerLevel10k-style prompt with Ghost Hacker Blue colors
+-- Ported from .p10k.zsh configuration
+
+-- Enable the native GhostKellz P10k prompt
+gprompt_enable()
+
+-- This prompt features:
+--   - Two-line layout (╭─ / ╰─)
+--   - Arch Linux icon
+--   - Truncated directory path (~/…/last/3/dirs)
+--   - Git branch with dirty indicator
+--   - Exit status colored prompt character
+
+-- Color scheme: Ghost Hacker Blue (256-color ANSI)
+--   OS Icon:    fg=18  bg=33  (dark blue/teal)
+--   Directory:  fg=122 bg=68  (aquamarine/green)
+--   VCS:        fg=150 bg=64  (mint green/olive)
+--   Prompt:     fg=46 (success) / fg=196 (error)
+
+-- Icons used (from zfont PowerLevel10k library):
+--   • LINUX_ARCH_ICON     - Arch logo
+--   • VCS_BRANCH_ICON     -  Git branch
+--   • LEFT_SEGMENT_SEPARATOR -  Powerline separator
+
+-- Example output:
+--   ╭─  arch  ~/projects/gshell   main*
+--   ╰─ ❯
+
+-- To customize, copy this file and modify:
+--   ~/.config/gshell/prompts/my-theme.gza
+-- Then load it in your .gshrc.gza:
+--   exec("source ~/.config/gshell/prompts/my-theme.gza")

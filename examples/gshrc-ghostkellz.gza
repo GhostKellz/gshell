@@ -1,0 +1,230 @@
+-- ╔═══════════════════════════════════════════════════════════╗
+-- ║  GhostKellz GShell Configuration                          ║
+-- ║  Ported from .zshrc with P10k + Oh-My-Zsh features       ║
+-- ╚═══════════════════════════════════════════════════════════╝
+
+-- Load GhostKellz GPPrompt theme (PowerLevel10k-style)
+gprompt_enable()
+
+-- ============================================================
+-- Environment Setup
+-- ============================================================
+
+-- Editor configuration
+setenv("EDITOR", "nvim")
+setenv("VISUAL", "nvim")
+
+-- Vivid theme for LS_COLORS (Ghost Hacker Blue palette)
+if command_exists("vivid") then
+    load_vivid_theme("ghost-hacker-blue")
+end
+
+-- ============================================================
+-- History Configuration
+-- ============================================================
+
+set_history_size(10000)
+set_history_file("~/.gshell_history")
+
+-- ============================================================
+-- Aliases (Essential Productivity Boosters)
+-- ============================================================
+
+-- Navigation
+alias("...", "cd ../..")
+alias("..", "cd ..")
+alias("~", "cd ~")
+
+-- List commands with icons and colors
+alias("ls", "lsd")
+alias("ll", "lsd -lh")
+alias("la", "lsd -lAh")
+alias("lt", "lsd --tree")
+alias("l", "lsd -lAh")
+
+-- Modern replacements
+alias("cat", "bat --paging=never")
+alias("grep", "rg")
+alias("find", "fd")
+alias("ps", "procs")
+alias("top", "btm")
+alias("du", "dust")
+alias("df", "duf")
+alias("dig", "dog")
+
+-- Git shortcuts
+alias("g", "git")
+alias("gs", "git status")
+alias("ga", "git add")
+alias("gc", "git commit")
+alias("gp", "git push")
+alias("gl", "git pull")
+alias("gd", "git diff")
+alias("gco", "git checkout")
+alias("gb", "git branch")
+alias("glog", "git log --oneline --graph --decorate")
+alias("gst", "git stash")
+alias("gstp", "git stash pop")
+
+-- Docker shortcuts
+alias("d", "docker")
+alias("dc", "docker-compose")
+alias("dps", "docker ps")
+alias("di", "docker images")
+alias("drm", "docker rm")
+alias("drmi", "docker rmi")
+
+-- Kubernetes
+alias("k", "kubectl")
+alias("kx", "kubectx")
+alias("kn", "kubens")
+
+-- System
+alias("c", "clear")
+alias("h", "history")
+alias("path", "echo $PATH | tr ':' '\n'")
+
+-- Safety (prompt before overwrite)
+alias("cp", "cp -i")
+alias("mv", "mv -i")
+alias("rm", "rm -i")
+
+-- Quick access
+alias("dots", "cd ~/dotfiles")
+alias("proj", "cd ~/projects")
+alias("dl", "cd ~/Downloads")
+
+-- ============================================================
+-- GhostPlug - Plugin System
+-- ============================================================
+
+-- Enable built-in plugins
+enable_plugin("git")        -- Git helpers (git_branch, git_dirty, etc.)
+enable_plugin("network")    -- Network utilities (net-scan, net-info, etc.)
+enable_plugin("docker")     -- Docker helpers
+enable_plugin("dev")        -- Development tools (version managers)
+
+-- ============================================================
+-- Custom Functions (via Ghostlang)
+-- ============================================================
+
+-- Quick project opener
+function proj_open(name)
+    local base = getenv("HOME") .. "/projects"
+    if path_exists(base .. "/" .. name) then
+        cd(base .. "/" .. name)
+        print("📂 Opened project: " .. name)
+    else
+        error("Project not found: " .. name)
+    end
+end
+
+-- Git repo initializer with template
+function git_init_pro()
+    exec("git init")
+    exec("git config user.name 'GhostKellz'")
+    exec("git config user.email 'ghostkellz@pm.me'")
+
+    -- Create .gitignore
+    local gitignore = [[
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+/target/
+/build/
+/dist/
+*.o
+*.so
+
+# Dependencies
+/node_modules/
+/.zig-cache/
+]]
+    write_file(".gitignore", gitignore)
+    print("✓ Git repo initialized with template")
+end
+
+-- System info display
+function sysinfo()
+    local user = get_user()
+    local host = get_hostname()
+    local cwd = get_cwd()
+
+    print("╔═══════════════════════════════════════╗")
+    print("║  System Information                   ║")
+    print("╠═══════════════════════════════════════╣")
+    print("║  User:  " .. user .. "@" .. host)
+    print("║  PWD:   " .. cwd)
+
+    if in_git_repo() then
+        local branch = git_branch()
+        local dirty = git_dirty() and "*" or ""
+        print("║  Git:    " .. branch .. dirty)
+    end
+
+    print("╚═══════════════════════════════════════╝")
+end
+
+-- ============================================================
+-- Keybindings & Shell Behavior
+-- ============================================================
+
+-- TODO: Implement keybinding API
+-- bind("Ctrl-R", "history_search")
+-- bind("Ctrl-T", "fzf_file_search")
+-- bind("Ctrl-G", "fzf_git_branch")
+
+-- ============================================================
+-- Welcome Message
+-- ============================================================
+
+-- Get Nerd Font icons
+local arch_icon = icon_arch()
+local git_icon = icon_git_branch()
+
+print("\n╭─────────────────────────────────────╮")
+print("│  🌊 GShell - Next-Gen Linux Shell  │")
+print("│  " .. arch_icon .. "  Arch Linux • GPPrompt Enabled │")
+print("╰─────────────────────────────────────╯\n")
+
+-- Display system info if in a git repo
+if in_git_repo() then
+    local branch = git_branch()
+    print(git_icon .. " Repository: " .. branch .. "\n")
+end
+
+print("💡 Type 'sysinfo' for system details")
+print("💡 Type 'gprompt_disable()' to switch to Starship\n")
+
+-- ============================================================
+-- Post-Setup Hooks
+-- ============================================================
+
+-- Detect and warn about missing tools
+local tools = {"lsd", "bat", "rg", "fd", "vivid", "starship"}
+local missing = {}
+
+for i, tool in ipairs(tools) do
+    if not command_exists(tool) then
+        table.insert(missing, tool)
+    end
+end
+
+if #missing > 0 then
+    print("⚠️  Optional tools not found:")
+    for i, tool in ipairs(missing) do
+        print("   • " .. tool)
+    end
+    print("\nInstall with: sudo pacman -S " .. table.concat(missing, " "))
+    print()
+end
+
+-- EOF: ~/.gshrc.gza

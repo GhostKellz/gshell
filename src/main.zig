@@ -1,13 +1,14 @@
 const std = @import("std");
 const flash = @import("flash");
 const gshell = @import("gshell");
+const wizard_p10k = @import("wizard_p10k.zig");
 
-const cli_version = "0.1.0-alpha";
+const cli_version = "0.1.0";
 
 const AppCLI = flash.CLI(.{
-    .name = "gshell",
+    .name = "gsh",
     .version = cli_version,
-    .about = "Ghost Shell — a modern shell for the Ghost stack",
+    .about = "⚡ gsh — next generation shell",
 });
 
 const CliState = struct {
@@ -54,16 +55,20 @@ const completions_command = flash.cmd("completions", (flash.CommandConfig{})
         .setRequired())})
     .withHandler(completionsHandler));
 
+const p10ksetup_command = flash.cmd("p10ksetup", (flash.CommandConfig{})
+    .withAbout("Run the interactive GPPrompt (PowerLevel10k-style) configuration wizard")
+    .withHandler(p10ksetupHandler));
+
 const root_command_config = (flash.CommandConfig{})
-    .withAbout("Launch the Ghost shell")
-    .withUsage("gshell [--config PATH] [-c command | script.gsh [args...]]")
+    .withAbout("Next generation shell")
+    .withUsage("gsh [--config PATH] [-c command | script.gsh [args...]]")
     .withArgs(&.{ makeConfigArg(), makeCommandArg() })
     .withFlags(&.{
         flash.Flag.init("init", (flash.FlagConfig{})
             .withLong("init")
             .withHelp("Run the configuration wizard and exit")),
     })
-    .withSubcommands(&.{ init_command, completions_command })
+    .withSubcommands(&.{ init_command, completions_command, p10ksetup_command })
     .withHandler(rootHandler);
 
 pub fn main() !void {
@@ -168,7 +173,7 @@ fn needsValue(arg: []const u8) bool {
 }
 
 fn isSubcommandName(arg: []const u8) bool {
-    return std.mem.eql(u8, arg, "init") or std.mem.eql(u8, arg, "completions");
+    return std.mem.eql(u8, arg, "init") or std.mem.eql(u8, arg, "completions") or std.mem.eql(u8, arg, "p10ksetup");
 }
 
 fn loadOptionsFromContext(ctx: flash.Context) gshell.config.LoadOptions {
@@ -262,19 +267,33 @@ fn completionsHandler(ctx: flash.Context) flash.Error!void {
     stdout_file.writeAll("# Shell completion generation is not implemented yet\n") catch return flash.Error.IOError;
 }
 
+fn p10ksetupHandler(ctx: flash.Context) flash.Error!void {
+    const allocator = ctx.allocator;
+    wizard_p10k.runWizard(allocator) catch |err| {
+        var stderr_file = std.fs.File.stderr();
+        const msg = std.fmt.allocPrint(allocator, "gsh p10ksetup: wizard failed: {s}\n", .{@errorName(err)}) catch {
+            stderr_file.writeAll("gsh p10ksetup: wizard failed\n") catch {};
+            return flash.Error.IOError;
+        };
+        defer allocator.free(msg);
+        stderr_file.writeAll(msg) catch {};
+        return flash.Error.IOError;
+    };
+}
+
 fn runInit(allocator: std.mem.Allocator, options: gshell.config.LoadOptions, force: bool) flash.Error!i32 {
     const path = gshell.config.writeDefaultConfig(allocator, options, force) catch |err| switch (err) {
         gshell.config.LoadError.ConfigAlreadyExists => {
             const resolved_path = gshell.config.ensureConfigPath(allocator, options) catch |resolve_err| switch (resolve_err) {
                 gshell.config.LoadError.ConfigPathUnavailable => {
                     var stderr_file = std.fs.File.stderr();
-                    stderr_file.writeAll("gshell init: unable to determine config path (set HOME or use --config)\n") catch return flash.Error.IOError;
+                    stderr_file.writeAll("gsh init: unable to determine config path (set HOME or use --config)\n") catch return flash.Error.IOError;
                     return 1;
                 },
                 else => return mapConfigError(resolve_err),
             };
             defer allocator.free(resolved_path);
-            const msg = try std.fmt.allocPrint(allocator, "gshell init: config already exists at {s} (use --force to overwrite)\n", .{resolved_path});
+            const msg = try std.fmt.allocPrint(allocator, "gsh init: config already exists at {s} (use --force to overwrite)\n", .{resolved_path});
             defer allocator.free(msg);
             var stderr_file = std.fs.File.stderr();
             stderr_file.writeAll(msg) catch return flash.Error.IOError;
@@ -282,14 +301,14 @@ fn runInit(allocator: std.mem.Allocator, options: gshell.config.LoadOptions, for
         },
         gshell.config.LoadError.ConfigPathUnavailable => {
             var stderr_file = std.fs.File.stderr();
-            stderr_file.writeAll("gshell init: unable to determine config path (set HOME or use --config)\n") catch return flash.Error.IOError;
+            stderr_file.writeAll("gsh init: unable to determine config path (set HOME or use --config)\n") catch return flash.Error.IOError;
             return 1;
         },
         else => return mapConfigError(err),
     };
     defer allocator.free(path);
 
-    const msg = try std.fmt.allocPrint(allocator, "gshell init: wrote default config to {s}\n", .{path});
+    const msg = try std.fmt.allocPrint(allocator, "gsh init: wrote default config to {s}\n", .{path});
     defer allocator.free(msg);
     var stdout_file = std.fs.File.stdout();
     stdout_file.writeAll(msg) catch return flash.Error.IOError;
@@ -328,13 +347,13 @@ fn mapShellExecError(err: anyerror) flash.Error {
 fn printUsage() void {
     var stderr_file = std.fs.File.stderr();
     stderr_file.writeAll(
-        "Usage:\n  gshell [--config PATH] [-c command]\n  gshell [--config PATH] script.gsh [args...]\n  gshell --init [--config PATH]\n  gshell init [--force] [--config PATH]\n  gshell completions <shell>\n",
+        "Usage:\n  gsh [--config PATH] [-c command]\n  gsh [--config PATH] script.gsh [args...]\n  gsh --init [--config PATH]\n  gsh init [--force] [--config PATH]\n  gsh completions <shell>\n",
     ) catch {};
 }
 
 fn reportConfigError(err: anyerror) void {
     var stderr_file = std.fs.File.stderr();
-    stderr_file.writeAll("gshell: failed to load configuration: ") catch {};
+    stderr_file.writeAll("gsh: failed to load configuration: ") catch {};
     stderr_file.writeAll(@errorName(err)) catch {};
     stderr_file.writeAll("\n") catch {};
 }

@@ -1,5 +1,9 @@
 const std = @import("std");
 const prompt_git = @import("prompt_git.zig");
+const ghostkellz = @import("prompts/ghostkellz.zig");
+const VersionDetector = @import("version_detect.zig").VersionDetector;
+const InstantPromptCache = @import("instant_prompt.zig").InstantPromptCache;
+const GitInfo = prompt_git.GitInfo;
 
 pub const SegmentAlign = enum {
     left,
@@ -30,18 +34,32 @@ pub const PromptEngine = struct {
     allocator: std.mem.Allocator,
     segments: std.ArrayListUnmanaged(PromptSegment) = .{},
     use_starship: bool = false,
+    use_ghostkellz: bool = false,
     starship_available: ?bool = null,
     git_prompt: ?prompt_git.GitPrompt = null,
+    ghostkellz_prompt: ?ghostkellz.GhostKellzPrompt = null,
+    version_detector: VersionDetector,
+    instant_prompt: ?InstantPromptCache = null,
 
     pub fn init(allocator: std.mem.Allocator) PromptEngine {
+        var version_detector = VersionDetector.init(allocator);
+        const instant_prompt = InstantPromptCache.init(allocator) catch null;
+
         return .{
             .allocator = allocator,
             .git_prompt = prompt_git.GitPrompt.init(allocator),
+            .ghostkellz_prompt = ghostkellz.GhostKellzPrompt.init(allocator, &version_detector) catch null,
+            .version_detector = version_detector,
+            .instant_prompt = instant_prompt,
         };
     }
 
     pub fn setUseStarship(self: *PromptEngine, use: bool) void {
         self.use_starship = use;
+    }
+
+    pub fn setUseGhostKellz(self: *PromptEngine, use: bool) void {
+        self.use_ghostkellz = use;
     }
 
     pub fn deinit(self: *PromptEngine) void {
@@ -52,6 +70,13 @@ pub const PromptEngine = struct {
         if (self.git_prompt) |*gp| {
             gp.deinit();
         }
+        if (self.ghostkellz_prompt) |*gkp| {
+            gkp.deinit();
+        }
+        if (self.instant_prompt) |*ip| {
+            ip.deinit();
+        }
+        self.version_detector.deinit();
     }
 
     pub fn addSegment(self: *PromptEngine, text: []const u8, alignment: SegmentAlign) !void {
@@ -72,6 +97,41 @@ pub const PromptEngine = struct {
     }
 
     pub fn render(self: *PromptEngine, ctx: PromptContext, terminal_width: usize) ![]const u8 {
+        // Try instant prompt cache first (only for GPPrompt)
+        if (self.use_ghostkellz and self.instant_prompt != null) {
+            const cache_ctx = InstantPromptCache.CacheContext{
+                .cwd = ctx.cwd,
+                .user = ctx.user,
+                .host = ctx.host,
+                .exit_code = ctx.exit_code,
+                .timestamp_ms = std.time.milliTimestamp(),
+            };
+
+            if (self.instant_prompt.?.load(cache_ctx)) |cached| {
+                // Cache hit! Return instantly
+                return cached;
+            }
+        }
+
+        // Try GhostKellz P10k prompt first if enabled
+        if (self.use_ghostkellz) {
+            if (try self.renderGhostKellz(ctx, terminal_width)) |gk_prompt| {
+                // Save to cache for next time
+                if (self.instant_prompt) |*ip| {
+                    const cache_ctx = InstantPromptCache.CacheContext{
+                        .cwd = ctx.cwd,
+                        .user = ctx.user,
+                        .host = ctx.host,
+                        .exit_code = ctx.exit_code,
+                        .timestamp_ms = std.time.milliTimestamp(),
+                    };
+                    ip.save(cache_ctx, gk_prompt) catch {};
+                }
+                return gk_prompt;
+            }
+            // Fall through to Starship/segment-based rendering if GhostKellz fails
+        }
+
         // Try Starship if enabled
         if (self.use_starship) {
             if (try self.renderStarship(ctx)) |starship_prompt| {
@@ -142,6 +202,47 @@ pub const PromptEngine = struct {
             seg.deinit(self.allocator);
         }
         self.segments.clearRetainingCapacity();
+    }
+
+    fn renderGhostKellz(self: *PromptEngine, ctx: PromptContext, terminal_width: usize) !?[]const u8 {
+        if (self.ghostkellz_prompt == null) return null;
+
+        // Gather git information
+        var in_git_repo = false;
+        var git_branch: []const u8 = "";
+        var git_dirty = false;
+
+        if (self.git_prompt) |*gp| {
+            // Get git info from cache or fetch
+            const git_info = gp.getInfo(ctx.cwd) catch GitInfo{};
+            defer {
+                var mut_info = git_info;
+                mut_info.deinit(self.allocator);
+            }
+
+            in_git_repo = git_info.in_repo;
+            git_dirty = git_info.dirty;
+            if (git_info.branch) |branch| {
+                git_branch = branch;
+            }
+        }
+
+        // Build GhostKellz context
+        const gk_ctx = ghostkellz.PromptContext{
+            .cwd = ctx.cwd,
+            .user = ctx.user,
+            .host = ctx.host,
+            .exit_code = ctx.exit_code,
+            .in_git_repo = in_git_repo,
+            .git_branch = git_branch,
+            .git_dirty = git_dirty,
+            .terminal_width = terminal_width,
+            .terminal_height = 24, // Default, could be detected
+        };
+
+        // Render the prompt
+        var gkp = &self.ghostkellz_prompt.?;
+        return gkp.render(gk_ctx) catch null;
     }
 
     fn renderStarship(self: *PromptEngine, ctx: PromptContext) !?[]const u8 {
