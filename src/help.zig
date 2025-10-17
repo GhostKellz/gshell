@@ -108,6 +108,29 @@ pub const topics = [_]HelpTopic{
         .see_also = &[_][]const u8{ "fg", "jobs" },
     },
 
+    // Editor integration
+    .{
+        .name = "e",
+        .usage = "e <file> | e -",
+        .description = "Edit a file or command from history.\nUses grim if available, falls back to $EDITOR, then vi.\ne <file>  - Open file in editor\ne -       - Edit last command from history",
+        .examples = &[_]Example{
+            .{ .command = "e config.txt", .description = "Edit a file" },
+            .{ .command = "e ~/.gshrc.gza", .description = "Edit shell config" },
+            .{ .command = "e -", .description = "Edit last command from history" },
+        },
+        .see_also = &[_][]const u8{ "fc", "history" },
+    },
+    .{
+        .name = "fc",
+        .usage = "fc <N>",
+        .description = "Edit command N from history in your editor.\nAfter editing, the command is displayed for review and execution.",
+        .examples = &[_]Example{
+            .{ .command = "fc 42", .description = "Edit command #42 from history" },
+            .{ .command = "fc 1", .description = "Edit the first command in history" },
+        },
+        .see_also = &[_][]const u8{ "e", "history" },
+    },
+
     // Networking utilities
     .{
         .name = "net-test",
@@ -210,6 +233,16 @@ pub fn printOverview(allocator: std.mem.Allocator, file: std.fs.File) !void {
     try file.writeAll("\x1b[1mCORE BUILTINS\x1b[0m\n");
     const builtins_list = [_][]const u8{ "cd", "pwd", "echo", "exit", "alias", "unalias", "jobs", "fg", "bg", "help" };
     for (builtins_list) |name| {
+        if (findTopic(name)) |topic| {
+            const line = try std.fmt.allocPrint(allocator, "  \x1b[32m{s:<15}\x1b[0m {s}\n", .{ name, topic.usage });
+            defer allocator.free(line);
+            try file.writeAll(line);
+        }
+    }
+
+    try file.writeAll("\n\x1b[1mEDITOR INTEGRATION\x1b[0m\n");
+    const editor_list = [_][]const u8{ "e", "fc" };
+    for (editor_list) |name| {
         if (findTopic(name)) |topic| {
             const line = try std.fmt.allocPrint(allocator, "  \x1b[32m{s:<15}\x1b[0m {s}\n", .{ name, topic.usage });
             defer allocator.free(line);

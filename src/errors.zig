@@ -13,11 +13,10 @@ pub const ErrorContext = struct {
     pub fn format(
         self: ErrorContext,
         comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
+        _: anytype,
         writer: anytype,
     ) !void {
         _ = fmt;
-        _ = options;
 
         // Error header
         try writer.print("\x1b[1;31merror\x1b[0m: {s}\n", .{self.message});
@@ -91,7 +90,7 @@ pub const ErrorCode = enum {
 /// Create error context for command not found
 pub fn commandNotFound(allocator: std.mem.Allocator, command: []const u8) !ErrorContext {
     const message = try std.fmt.allocPrint(allocator, "command not found: {s}", .{command});
-    const suggestion = try findSimilarCommand(allocator, command);
+    const suggestion = findSimilarCommand(allocator, command);
 
     return ErrorContext{
         .code = .command_not_found,
@@ -190,12 +189,76 @@ pub fn networkError(allocator: std.mem.Allocator, host: []const u8, reason: []co
     };
 }
 
-/// Find similar commands for suggestions (simple edit distance)
+/// Calculate Levenshtein distance between two strings
+fn levenshteinDistance(s1: []const u8, s2: []const u8, allocator: std.mem.Allocator) !usize {
+    const len1 = s1.len;
+    const len2 = s2.len;
+
+    if (len1 == 0) return len2;
+    if (len2 == 0) return len1;
+
+    // Create matrix for dynamic programming
+    var matrix = try allocator.alloc(usize, (len1 + 1) * (len2 + 1));
+    defer allocator.free(matrix);
+
+    // Initialize first column and row
+    for (0..len1 + 1) |i| {
+        matrix[i * (len2 + 1)] = i;
+    }
+    for (0..len2 + 1) |j| {
+        matrix[j] = j;
+    }
+
+    // Fill matrix
+    for (1..len1 + 1) |i| {
+        for (1..len2 + 1) |j| {
+            const cost: usize = if (s1[i - 1] == s2[j - 1]) 0 else 1;
+
+            const deletion = matrix[(i - 1) * (len2 + 1) + j] + 1;
+            const insertion = matrix[i * (len2 + 1) + (j - 1)] + 1;
+            const substitution = matrix[(i - 1) * (len2 + 1) + (j - 1)] + cost;
+
+            matrix[i * (len2 + 1) + j] = @min(deletion, @min(insertion, substitution));
+        }
+    }
+
+    return matrix[len1 * (len2 + 1) + len2];
+}
+
+/// Find similar commands for suggestions using edit distance
 fn findSimilarCommand(allocator: std.mem.Allocator, command: []const u8) ?[]const u8 {
-    _ = allocator;
-    _ = command;
-    // TODO: Implement command similarity search
-    // For now, return generic suggestion
+    // Common shell commands to check against
+    const common_commands = [_][]const u8{
+        // Core builtins
+        "cd", "pwd", "echo", "exit", "alias", "unalias", "help",
+        "jobs", "fg", "bg", "e", "fc",
+        // Common Unix commands
+        "ls", "cat", "grep", "find", "sed", "awk", "sort", "uniq",
+        "head", "tail", "wc", "cut", "tr", "tee", "xargs",
+        "git", "make", "cargo", "npm", "pip", "docker", "kubectl",
+        "ps", "top", "kill", "htop", "free", "df", "du",
+        "ssh", "scp", "rsync", "curl", "wget", "nc",
+        "vim", "nano", "emacs", "grim",
+        "man", "which", "whereis", "type",
+    };
+
+    var best_match: ?[]const u8 = null;
+    var best_distance: usize = std.math.maxInt(usize);
+
+    for (common_commands) |cmd| {
+        const distance = levenshteinDistance(command, cmd, allocator) catch continue;
+
+        // Only suggest if edit distance is small (typo range)
+        if (distance <= 2 and distance < best_distance) {
+            best_distance = distance;
+            best_match = cmd;
+        }
+    }
+
+    if (best_match) |match| {
+        return std.fmt.allocPrint(allocator, "Did you mean '{s}'?", .{match}) catch null;
+    }
+
     return null;
 }
 

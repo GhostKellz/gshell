@@ -55,6 +55,8 @@ pub fn build(b: *std.Build) void {
     const ghostlang_dep = b.dependency("ghostlang", .{ .target = target, .optimize = optimize });
     const zdoc_dep = b.dependency("zdoc", .{ .target = target, .optimize = optimize });
     const grove_dep = b.dependency("grove", .{ .target = target, .optimize = optimize });
+    const zontom_dep = b.dependency("zontom", .{ .target = target, .optimize = optimize });
+    const grim_dep = b.dependency("grim", .{ .target = target, .optimize = optimize });
     mod.addImport("flash", flash_dep.module("flash"));
     mod.addImport("flare", flare_dep.module("flare"));
     mod.addImport("gcode", gcode_dep.module("gcode"));
@@ -66,6 +68,8 @@ pub fn build(b: *std.Build) void {
     mod.addImport("ghostlang", ghostlang_dep.module("ghostlang"));
     mod.addImport("zdoc", zdoc_dep.module("zdoc"));
     mod.addImport("grove", grove_dep.module("grove"));
+    mod.addImport("zontom", zontom_dep.module("zontom"));
+    mod.addImport("grim", grim_dep.module("grim"));
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -116,6 +120,8 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
                 .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
                 .{ .name = "grove", .module = grove_dep.module("grove") },
+                .{ .name = "zontom", .module = zontom_dep.module("zontom") },
+                .{ .name = "grim", .module = grim_dep.module("grim") },
             },
         }),
     });
@@ -191,6 +197,8 @@ pub fn build(b: *std.Build) void {
                 .{ .name = "ghostlang", .module = ghostlang_dep.module("ghostlang") },
                 .{ .name = "zdoc", .module = zdoc_dep.module("zdoc") },
                 .{ .name = "grove", .module = grove_dep.module("grove") },
+                .{ .name = "zontom", .module = zontom_dep.module("zontom") },
+                .{ .name = "grim", .module = grim_dep.module("grim") },
             },
         }),
     });

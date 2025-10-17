@@ -98,6 +98,11 @@ pub const Shell = struct {
             validator = command_validator.CommandValidator.init(allocator) catch null;
         }
 
+        // Wire validator into highlighter for error highlighting
+        if (highlighter != null and validator != null) {
+            highlighter.?.setValidator(&validator.?);
+        }
+
         var shell = Shell{
             .allocator = allocator,
             .config = config,
@@ -626,6 +631,29 @@ pub const Shell = struct {
         return null;
     }
 
+    /// Find autosuggestion from history based on current input (Fish-style)
+    /// Returns the suggested completion text (only the part after current input)
+    fn findAutosuggestion(history: *const std.ArrayListUnmanaged([]const u8), current_input: []const u8) ?[]const u8 {
+        if (current_input.len == 0) return null;
+        if (history.items.len == 0) return null;
+
+        // Search backwards through history (most recent first)
+        var i = history.items.len;
+        while (i > 0) {
+            i -= 1;
+            const hist_entry = history.items[i];
+
+            // Check if history entry starts with current input
+            if (hist_entry.len > current_input.len and
+                std.mem.startsWith(u8, hist_entry, current_input))
+            {
+                // Return the remaining part as suggestion
+                return hist_entry[current_input.len..];
+            }
+        }
+        return null;
+    }
+
     fn renderSearchPrompt(
         stdout_file: *std.fs.File,
         query: *const std.ArrayListUnmanaged(u8),
@@ -949,6 +977,19 @@ pub const Shell = struct {
                                 }
                             },
                             'C' => { // Right arrow
+                                // If cursor is at end, check for autosuggestion to accept
+                                if (cursor == buffer.items.len and history_pos == null and !search_mode) {
+                                    const suggestion = findAutosuggestion(&self.history_buffer, buffer.items);
+                                    if (suggestion) |sug| {
+                                        // Accept the full suggestion
+                                        try buffer.appendSlice(allocator, sug);
+                                        cursor = buffer.items.len;
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
+                                        continue;
+                                    }
+                                }
+
+                                // Normal right arrow behavior - move cursor
                                 const next = gcode.findNextGrapheme(buffer.items, cursor);
                                 if (next != cursor) {
                                     cursor = next;
@@ -969,6 +1010,18 @@ pub const Shell = struct {
                                 }
                             },
                             'F' => { // End
+                                // If cursor is at end, check for autosuggestion to accept
+                                if (cursor == buffer.items.len and history_pos == null and !search_mode) {
+                                    const suggestion = findAutosuggestion(&self.history_buffer, buffer.items);
+                                    if (suggestion) |sug| {
+                                        // Accept the full suggestion
+                                        try buffer.appendSlice(allocator, sug);
+                                        cursor = buffer.items.len;
+                                        rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
+                                        continue;
+                                    }
+                                }
+
                                 if (cursor != buffer.items.len) {
                                     cursor = buffer.items.len;
                                     rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
@@ -1024,7 +1077,25 @@ pub const Shell = struct {
             }
             buffer.items[cursor] = ch;
             cursor += 1;
-            rendered_width = try rewriteInteractiveLine(stdout_file, prompt_bytes, prompt_width, buffer.items, cursor, rendered_width, allocator, if (self.highlighter) |*h| h else null);
+
+            // Show Fish-style autosuggestion if cursor is at end
+            const suggestion = if (cursor == buffer.items.len and !search_mode and history_pos == null)
+                findAutosuggestion(&self.history_buffer, buffer.items)
+            else
+                null;
+
+            rendered_width = try rewriteInteractiveLineWithSuggestion(
+                stdout_file,
+                prompt_bytes,
+                prompt_width,
+                buffer.items,
+                cursor,
+                rendered_width,
+                allocator,
+                if (self.highlighter) |*h| h else null,
+                suggestion,
+                &self.history_buffer,
+            );
         }
 
         return try buffer.toOwnedSlice(allocator);
@@ -1122,6 +1193,74 @@ fn rewriteInteractiveLine(
     }
 
     return line_width;
+}
+
+fn rewriteInteractiveLineWithSuggestion(
+    stdout_file: *std.fs.File,
+    prompt: []const u8,
+    prompt_width: usize,
+    buffer: []const u8,
+    cursor: usize,
+    previous_total_width: usize,
+    allocator: std.mem.Allocator,
+    highlighter: ?*highlight_mod.Highlighter,
+    suggestion: ?[]const u8,
+    history: *const std.ArrayListUnmanaged([]const u8),
+) !usize {
+    _ = history;
+    const line_width = prompt_width + gcode.stringWidth(buffer);
+    const cursor_width = prompt_width + gcode.stringWidth(buffer[0..cursor]);
+
+    try stdout_file.writeAll("\r");
+    try stdout_file.writeAll(prompt);
+    if (buffer.len > 0) {
+        // Use syntax highlighting if available
+        if (highlighter) |h| {
+            const highlighted = h.highlightAndRender(buffer) catch buffer;
+            defer if (highlighted.ptr != buffer.ptr) allocator.free(highlighted);
+            try stdout_file.writeAll(highlighted);
+        } else {
+            try stdout_file.writeAll(buffer);
+        }
+    }
+
+    // Display autosuggestion in gray if cursor is at end and we have a suggestion
+    var suggestion_width: usize = 0;
+    if (cursor == buffer.len) {
+        if (suggestion) |sug| {
+            // Gray color for suggestion (dim/faint)
+            try stdout_file.writeAll("\x1b[2m");
+            try stdout_file.writeAll(sug);
+            try stdout_file.writeAll("\x1b[0m");
+            suggestion_width = gcode.stringWidth(sug);
+        }
+    }
+
+    const total_width = line_width + suggestion_width;
+
+    if (total_width < previous_total_width) {
+        const diff = previous_total_width - total_width;
+        var space_block: [16]u8 = undefined;
+        @memset(space_block[0..space_block.len], ' ');
+
+        var remaining = diff;
+        while (remaining > 0) {
+            const chunk = @min(remaining, space_block.len);
+            try stdout_file.writeAll(space_block[0..chunk]);
+            remaining -= chunk;
+        }
+
+        remaining = diff;
+        while (remaining > 0) : (remaining -= 1) {
+            try stdout_file.writeAll("\x08");
+        }
+    }
+
+    if (cursor_width < total_width) {
+        try moveCursorLeft(stdout_file, total_width - cursor_width);
+    }
+
+    return total_width;
 }
 
 fn moveCursorLeft(stdout_file: *std.fs.File, cells: usize) !void {

@@ -58,6 +58,7 @@ pub const ShellState = struct {
         // Security: Validate environment variable name and value
         try security.validateEnvVarName(key);
         try security.validateEnvVarValue(value);
+        // EnvMap.put() handles duplication internally
         try self.env.put(key, value);
     }
 

@@ -1,6 +1,7 @@
 const std = @import("std");
 const state = @import("state.zig");
 const networking = @import("builtins/networking.zig");
+const edit_mod = @import("builtins/edit.zig");
 const help_system = @import("help.zig");
 
 pub const BuiltinResult = struct {
@@ -29,6 +30,10 @@ pub fn lookup(name: []const u8) ?Handler {
     if (std.mem.eql(u8, name, "alias")) return alias;
     if (std.mem.eql(u8, name, "unalias")) return unalias;
     if (std.mem.eql(u8, name, "help")) return help;
+
+    // Editor integration
+    if (std.mem.eql(u8, name, "e")) return edit;
+    if (std.mem.eql(u8, name, "fc")) return fc;
 
     // Networking utilities
     if (std.mem.eql(u8, name, "net-test")) return netTest;
@@ -285,6 +290,25 @@ fn help(ctx: *Context, args: []const []const u8) !BuiltinResult {
         try stdout_file.writeAll(msg);
         return BuiltinResult{ .status = 1 };
     }
+}
+
+// Editor integration
+fn edit(ctx: *Context, args: []const []const u8) !BuiltinResult {
+    // Pass args[1..] to edit.execute since it doesn't expect the command name
+    const edit_args = if (args.len > 1) args[1..] else &[_][]const u8{};
+
+    edit_mod.execute(ctx.allocator, ctx.shell_state, edit_args, null) catch |err| {
+        const msg = try std.fmt.allocPrint(ctx.allocator, "edit: {s}\n", .{@errorName(err)});
+        defer ctx.allocator.free(msg);
+        try ctx.stdout.appendSlice(ctx.allocator, msg);
+        return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
+    };
+    return BuiltinResult{ .status = 0 };
+}
+
+fn fc(ctx: *Context, args: []const []const u8) !BuiltinResult {
+    // fc is just an alias for edit with history support
+    return edit(ctx, args);
 }
 
 test "echo builtin" {

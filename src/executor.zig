@@ -13,6 +13,7 @@ const state = @import("state.zig");
 const builtins = @import("builtins.zig");
 const security = @import("security.zig");
 const log = @import("logging.zig");
+const errors = @import("errors.zig");
 
 /// Result of command execution
 pub const ExecOutcome = struct {
@@ -208,7 +209,21 @@ fn runExternal(
     proc.env_map = &shell_state.env;
 
     proc.spawn() catch |err| {
-        std.debug.print("[ERROR] Failed to spawn command '{s}': {}\n", .{ args[0], err });
+        // Enhanced error handling with "did you mean?" suggestions
+        if (err == error.FileNotFound) {
+            const err_ctx = errors.commandNotFound(allocator, args[0]) catch {
+                std.debug.print("[ERROR] Command not found: {s}\n", .{args[0]});
+                return err;
+            };
+
+            // Print formatted error with suggestion using simple output
+            std.debug.print("\x1b[1;31merror\x1b[0m: {s}\n", .{err_ctx.message});
+            if (err_ctx.suggestion) |sug| {
+                std.debug.print("\n  \x1b[1;36mhelp\x1b[0m: {s}\n", .{sug});
+            }
+        } else {
+            std.debug.print("[ERROR] Failed to spawn command '{s}': {}\n", .{ args[0], err });
+        }
         return err;
     };
 

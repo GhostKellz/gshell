@@ -3,6 +3,7 @@
 const std = @import("std");
 const grove = @import("grove");
 const themes = @import("themes.zig");
+const command_validator = @import("command_validator.zig");
 
 /// Colored segment of text
 pub const ColoredSegment = struct {
@@ -20,6 +21,7 @@ pub const Highlighter = struct {
     highlight_query: []const u8,
     theme: themes.Theme,
     parser: grove.Parser,
+    validator: ?*command_validator.CommandValidator,
 
     /// Initialize the highlighter
     pub fn init(allocator: std.mem.Allocator, theme_name: []const u8) !Highlighter {
@@ -61,7 +63,13 @@ pub const Highlighter = struct {
             .highlight_query = highlight_query,
             .theme = themes.getTheme(theme_name),
             .parser = parser,
+            .validator = null,
         };
+    }
+
+    /// Set the command validator for error highlighting
+    pub fn setValidator(self: *Highlighter, validator: *command_validator.CommandValidator) void {
+        self.validator = validator;
     }
 
     /// Clean up resources
@@ -131,7 +139,55 @@ pub const Highlighter = struct {
             });
         }
 
+        // Command validation: highlight invalid commands in red
+        if (self.validator) |validator| {
+            const owned_segments = try segments.toOwnedSlice(self.allocator);
+            return try self.validateAndHighlightErrors(owned_segments, line, validator);
+        }
+
         return try segments.toOwnedSlice(self.allocator);
+    }
+
+    /// Validate the command and highlight errors in red
+    fn validateAndHighlightErrors(
+        _: *Highlighter,
+        segments: []ColoredSegment,
+        line: []const u8,
+        validator: *command_validator.CommandValidator,
+    ) ![]ColoredSegment {
+        // Extract the first word (command name) from the line
+        const trimmed = std.mem.trim(u8, line, " \t");
+        if (trimmed.len == 0) return segments;
+
+        // Find the first space or end of line
+        var command_end: usize = 0;
+        for (trimmed, 0..) |c, i| {
+            if (c == ' ' or c == '\t') {
+                command_end = i;
+                break;
+            }
+        } else {
+            command_end = trimmed.len;
+        }
+
+        const command = trimmed[0..command_end];
+        if (command.len == 0) return segments;
+
+        // Check if command is valid
+        const is_valid = validator.isCommandValid(command);
+        if (is_valid) return segments; // Command is valid, no changes
+
+        // Command is invalid - find its segment and change color to red
+        for (segments) |*segment| {
+            // Check if this segment contains the command
+            const seg_text = std.mem.trim(u8, segment.text, " \t");
+            if (std.mem.eql(u8, seg_text, command)) {
+                segment.color = themes.ansi.red;
+                break;
+            }
+        }
+
+        return segments;
     }
 
     /// Render colored segments to a string with ANSI codes

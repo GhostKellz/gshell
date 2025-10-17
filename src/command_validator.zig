@@ -42,6 +42,8 @@ pub const CommandValidator = struct {
         const builtin_list = [_][]const u8{
             // Core shell builtins
             "cd",
+            "pwd",
+            "echo",
             "exit",
             "export",
             "alias",
@@ -53,6 +55,10 @@ pub const CommandValidator = struct {
             "bg",
             "help",
             "history",
+
+            // Editor integration
+            "e",
+            "fc",
 
             // GShell-specific FFI builtins
             "use_starship",

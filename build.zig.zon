@@ -34,31 +34,31 @@
     .dependencies = .{
         .zsync = .{
             .url = "https://github.com/ghostkellz/zsync/archive/main.tar.gz",
-            .hash = "zsync-0.6.0-KAuheSdEIADMlFewFMVPdUYTc0wbMHf_j-OTiQdKSHew",
+            .hash = "zsync-0.6.1-KAuhedFXIADqHJzPi8ZCIVkvWRzaY5L5CXVd7vA9jfLM",
         },
         .flash = .{
-            .url = "https://github.com/ghostkellz/flash/archive/refs/heads/main.tar.gz",
-            .hash = "flash-0.3.1-dnj737-SBQDjkdsw5XOgIVxcWN0ZyJaDiXpUaoP7AcZ4",
+            .url = "https://github.com/ghostkellz/flash/archive/main.tar.gz",
+            .hash = "flash-0.3.1-dnj737SSBQBgVOHiNFHpXWrFth7PyGxCgfkmlBYtZz5S",
         },
         .flare = .{
             .url = "https://github.com/ghostkellz/flare/archive/refs/heads/main.tar.gz",
             .hash = "flare-0.1.0-NK4JafGMAQA8xE2ah8YBxO74sOkWrsQYTkWQ64D1PJVg",
         },
         .zigzag = .{
-            .url = "https://github.com/ghostkellz/zigzag/archive/refs/heads/main.tar.gz",
-            .hash = "zigzag-0.0.0-NmTasAS_BwBOXEkNTsKAihZ3ZEt6PEtmgbeBQMgdeqaW",
+            .url = "https://github.com/ghostkellz/zigzag/archive/main.tar.gz",
+            .hash = "zigzag-0.0.0-NmTasPm-BwAcKd_NHa11qFkEun0ruyDkdM-1u-eXVHlP",
         },
         .phantom = .{
-            .url = "https://github.com/ghostkellz/phantom/archive/refs/heads/main.tar.gz",
-            .hash = "phantom-0.5.0-E0eWBBcxEgBL64hlBvhWs5mNWAkruSyJ_kSR5xTBsWM_",
+            .url = "https://github.com/ghostkellz/phantom/archive/main.tar.gz",
+            .hash = "phantom-0.5.0-E0eWBAExEgDdmZiTLMX7aCaL5TAOTreBaBgIlrBkxM5x",
         },
         .zlog = .{
-            .url = "https://github.com/ghostkellz/zlog/archive/refs/heads/main.tar.gz",
-            .hash = "zlog-0.1.0-kS0sWE9cCAC4TsztkA-l0QEYu3eUKXrHnHux5eDvs04J",
+            .url = "https://github.com/ghostkellz/zlog/archive/main.tar.gz",
+            .hash = "zlog-0.1.0-kS0sWERcCAD4GivJW2gmFSr5XTSvs9go-5-9zZng-RjR",
         },
         .zqlite = .{
-            .url = "https://github.com/ghostkellz/zqlite/archive/refs/heads/main.tar.gz",
-            .hash = "zqlite-1.3.3-0Cdu4qPbEQDi2w8xpKxaXZuMYUBCp0YpIFPFcgruz2D7",
+            .url = "https://github.com/ghostkellz/zqlite/archive/main.tar.gz",
+            .hash = "zqlite-1.3.3-0Cdu4pjbEQAjeaEZEc3gwn2jJxgD9Um8xkDNqYeu5aKC",
         },
         .ghostlang = .{
             .url = "https://github.com/ghostkellz/ghostlang/archive/refs/heads/main.tar.gz",
@@ -79,6 +79,14 @@
         .zfont = .{
             .url = "https://github.com/ghostkellz/zfont/archive/refs/heads/main.tar.gz",
             .hash = "zfont-0.1.0-qcMRYK2ICwA3x_9gRT2lotL7ZS4fUA1bRNQi9JKAn8Kw",
+        },
+        .zontom = .{
+            .url = "https://github.com/ghostkellz/zontom/archive/main.tar.gz",
+            .hash = "zontom-0.0.0-2iAquAddAgDlnkEBoJKiOF01hmgQy998kE_hKxmwpHzV",
+        },
+        .grim = .{
+            .url = "https://github.com/ghostkellz/grim/archive/main.tar.gz",
+            .hash = "grim-0.0.0-BbxsASxkFwDyJNFq4lq25p5e8NYyQn-Qn1IHIubOrqKK",
         },
     },
     // Specifies the set of files and directories that are included in this package.
