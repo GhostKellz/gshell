@@ -77,10 +77,15 @@ pub const ScriptEngine = struct {
         };
         defer self.allocator.free(content);
 
-        _ = file.readAll(content) catch |err| {
+        const bytes_read = file.read(content) catch |err| {
             std.debug.print("[ERROR] Failed to read script file '{s}': {}\n", .{ path, err });
             return ScriptingError.ScriptLoadFailed;
         };
+
+        if (bytes_read != content.len) {
+            std.debug.print("[ERROR] Incomplete read of script file '{s}': read {} of {} bytes\n", .{ path, bytes_read, content.len });
+            return ScriptingError.ScriptLoadFailed;
+        }
 
         self.executeString(content) catch |err| {
             std.debug.print("[ERROR] Failed to execute script '{s}': {}\n", .{ path, err });
@@ -435,10 +440,15 @@ fn shellReadFile(args: []const ghostlang.ScriptValue) ghostlang.ScriptValue {
     // Note: This leaks memory - Ghostlang should own the string
     // TODO: Use Ghostlang's string allocation when available
 
-    _ = file.readAll(content) catch {
+    const bytes_read = file.read(content) catch {
         engine.allocator.free(content);
         return ghostlang.ScriptValue{ .nil = {} };
     };
+
+    if (bytes_read != content.len) {
+        engine.allocator.free(content);
+        return ghostlang.ScriptValue{ .nil = {} };
+    }
 
     return ghostlang.ScriptValue{ .string = content };
 }

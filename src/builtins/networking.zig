@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
+const net = std.Io.net;
+const zhttp = @import("zhttp");
 
 pub const BuiltinResult = struct {
     status: i32 = 0,
@@ -27,31 +29,23 @@ pub fn netTest(ctx: *Context, args: []const []const u8) !BuiltinResult {
         return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     };
 
-    const start_time = std.time.milliTimestamp();
+    const start_time = (try std.time.Instant.now()).timestamp.nsec;
+
+    // Create Io runtime for networking
+    var io_runtime = std.Io.Threaded.init(ctx.allocator);
+    defer io_runtime.deinit();
+    const io = io_runtime.io();
 
     // Try to connect
-    const address = std.net.Address.parseIp(host, port) catch blk: {
-        // If not an IP, try to resolve hostname
-        const address_list = std.net.getAddressList(ctx.allocator, host, port) catch {
-            const msg = try std.fmt.allocPrint(ctx.allocator, "❌ Failed to resolve: {s}\n", .{host});
-            defer ctx.allocator.free(msg);
-            try ctx.stdout.appendSlice(ctx.allocator, msg);
-            return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
-        };
-        defer address_list.deinit();
-
-        if (address_list.addrs.len == 0) {
-            const msg = try std.fmt.allocPrint(ctx.allocator, "❌ No addresses found for: {s}\n", .{host});
-            defer ctx.allocator.free(msg);
-            try ctx.stdout.appendSlice(ctx.allocator, msg);
-            return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
-        }
-
-        break :blk address_list.addrs[0];
+    const address = net.IpAddress.parse(host, port) catch {
+        const msg = try std.fmt.allocPrint(ctx.allocator, "❌ Failed to parse IP: {s}\n", .{host});
+        defer ctx.allocator.free(msg);
+        try ctx.stdout.appendSlice(ctx.allocator, msg);
+        return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     };
 
-    const stream = std.net.tcpConnectToAddress(address) catch {
-        const elapsed = std.time.milliTimestamp() - start_time;
+    const stream = address.connect(io, .{ .mode = .stream }) catch {
+        const elapsed = @divFloor((try std.time.Instant.now()).timestamp.nsec - start_time, 1_000_000);
         const msg = try std.fmt.allocPrint(
             ctx.allocator,
             "❌ Connection failed: {s}:{d} ({d}ms)\n",
@@ -61,9 +55,9 @@ pub fn netTest(ctx: *Context, args: []const []const u8) !BuiltinResult {
         try ctx.stdout.appendSlice(ctx.allocator, msg);
         return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     };
-    defer stream.close();
+    defer stream.close(io);
 
-    const elapsed = std.time.milliTimestamp() - start_time;
+    const elapsed = @divFloor((try std.time.Instant.now()).timestamp.nsec - start_time, 1_000_000);
     const msg = try std.fmt.allocPrint(
         ctx.allocator,
         "✅ Connection successful: {s}:{d} ({d}ms)\n",
@@ -85,44 +79,61 @@ pub fn netResolve(ctx: *Context, args: []const []const u8) !BuiltinResult {
 
     const hostname = args[1];
 
-    const address_list = std.net.getAddressList(ctx.allocator, hostname, 0) catch |err| {
-        const msg = try std.fmt.allocPrint(ctx.allocator, "❌ Failed to resolve {s}: {s}\n", .{ hostname, @errorName(err) });
-        defer ctx.allocator.free(msg);
-        try ctx.stdout.appendSlice(ctx.allocator, msg);
-        return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
-    };
-    defer address_list.deinit();
+    // Use getaddrinfo for DNS resolution
+    const hostname_z = try ctx.allocator.dupeZ(u8, hostname);
+    defer ctx.allocator.free(hostname_z);
 
-    if (address_list.addrs.len == 0) {
-        const msg = try std.fmt.allocPrint(ctx.allocator, "❌ No addresses found for: {s}\n", .{hostname});
+    const hints = std.posix.addrinfo{
+        .flags = std.posix.AI{},
+        .family = std.posix.AF.UNSPEC,
+        .socktype = std.posix.SOCK.STREAM,
+        .protocol = std.posix.IPPROTO.TCP,
+        .addrlen = 0,
+        .addr = null,
+        .canonname = null,
+        .next = null,
+    };
+
+    var result: ?*std.posix.addrinfo = null;
+    const rc = std.c.getaddrinfo(hostname_z.ptr, null, &hints, &result);
+    if (@intFromEnum(rc) != 0 or result == null) {
+        const msg = try std.fmt.allocPrint(ctx.allocator, "❌ Failed to resolve {s}\n", .{hostname});
         defer ctx.allocator.free(msg);
         try ctx.stdout.appendSlice(ctx.allocator, msg);
         return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     }
+    defer std.c.freeaddrinfo(result.?);
+
+    const first_result = result.?;
 
     const header = try std.fmt.allocPrint(ctx.allocator, "🔍 DNS Resolution: {s}\n", .{hostname});
     defer ctx.allocator.free(header);
     try ctx.stdout.appendSlice(ctx.allocator, header);
 
-    for (address_list.addrs, 0..) |addr, i| {
-        // Format IP address directly to avoid buffer size issues
-        const line = switch (addr.any.family) {
-            std.posix.AF.INET => blk: {
-                const ipv4 = @as(*const [4]u8, @ptrCast(&addr.in.sa.addr));
-                break :blk try std.fmt.allocPrint(
-                    ctx.allocator,
-                    "  [{d}] {d}.{d}.{d}.{d}\n",
-                    .{ i + 1, ipv4[0], ipv4[1], ipv4[2], ipv4[3] },
-                );
-            },
-            std.posix.AF.INET6 => blk: {
-                // For IPv6, just indicate it's an IPv6 address
-                break :blk try std.fmt.allocPrint(ctx.allocator, "  [{d}] [IPv6 address]\n", .{i + 1});
-            },
-            else => try std.fmt.allocPrint(ctx.allocator, "  [{d}] [Unknown family]\n", .{i + 1}),
-        };
-        defer ctx.allocator.free(line);
-        try ctx.stdout.appendSlice(ctx.allocator, line);
+    var current: ?*std.posix.addrinfo = first_result;
+    var index: usize = 1;
+    while (current) |addr_info| : (current = addr_info.next) {
+        if (addr_info.addr) |sockaddr| {
+            const line = switch (sockaddr.family) {
+                std.posix.AF.INET => blk: {
+                    const addr_in = @as(*const std.posix.sockaddr.in, @ptrCast(@alignCast(sockaddr)));
+                    const ip_bytes = @as(*const [4]u8, @ptrCast(&addr_in.addr));
+                    break :blk try std.fmt.allocPrint(
+                        ctx.allocator,
+                        "  [{d}] {d}.{d}.{d}.{d} (IPv4)\n",
+                        .{ index, ip_bytes[0], ip_bytes[1], ip_bytes[2], ip_bytes[3] },
+                    );
+                },
+                std.posix.AF.INET6 => blk: {
+                    // For IPv6, just indicate it's an IPv6 address
+                    break :blk try std.fmt.allocPrint(ctx.allocator, "  [{d}] [IPv6 address]\n", .{index});
+                },
+                else => try std.fmt.allocPrint(ctx.allocator, "  [{d}] [Unknown family]\n", .{index}),
+            };
+            defer ctx.allocator.free(line);
+            try ctx.stdout.appendSlice(ctx.allocator, line);
+            index += 1;
+        }
     }
 
     return BuiltinResult{ .status = 0, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
@@ -142,18 +153,8 @@ pub fn netFetch(ctx: *Context, args: []const []const u8) !BuiltinResult {
     defer ctx.allocator.free(header);
     try ctx.stdout.appendSlice(ctx.allocator, header);
 
-    var client = std.http.Client{ .allocator = ctx.allocator };
-    defer client.deinit();
-
-    // Create an allocating writer to capture the response body
-    var response_buffer: std.ArrayList(u8) = .{};
-    var allocating_writer = std.Io.Writer.Allocating.fromArrayList(ctx.allocator, &response_buffer);
-    defer allocating_writer.deinit();
-
-    const result = client.fetch(.{
-        .location = .{ .url = url },
-        .response_writer = &allocating_writer.writer,
-    }) catch |err| {
+    // Use zhttp for HTTP requests
+    var response = zhttp.get(ctx.allocator, url) catch |err| {
         const msg = try std.fmt.allocPrint(
             ctx.allocator,
             "❌ Failed to fetch: {s}\n",
@@ -163,20 +164,29 @@ pub fn netFetch(ctx: *Context, args: []const []const u8) !BuiltinResult {
         try ctx.stdout.appendSlice(ctx.allocator, msg);
         return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     };
+    defer response.deinit();
 
-    // Convert writer back to ArrayList and output the response body
-    var result_list = allocating_writer.toArrayList();
-    defer result_list.deinit(ctx.allocator);
+    // Read the response body
+    const body = response.body_reader.readAll(10 * 1024 * 1024) catch {
+        const msg = try std.fmt.allocPrint(ctx.allocator, "❌ Failed to read response body\n", .{});
+        defer ctx.allocator.free(msg);
+        try ctx.stdout.appendSlice(ctx.allocator, msg);
+        return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
+    };
+    defer ctx.allocator.free(body);
 
-    try ctx.stdout.appendSlice(ctx.allocator, result_list.items);
-    if (result_list.items.len > 0 and result_list.items[result_list.items.len - 1] != '\n') {
-        try ctx.stdout.append(ctx.allocator, '\n');
+    // Output response body
+    if (body.len > 0) {
+        try ctx.stdout.appendSlice(ctx.allocator, body);
+        if (body[body.len - 1] != '\n') {
+            try ctx.stdout.append(ctx.allocator, '\n');
+        }
     }
 
     const status_msg = try std.fmt.allocPrint(
         ctx.allocator,
         "\n✅ Status: {d} - Fetched {d} bytes\n",
-        .{ @intFromEnum(result.status), result_list.items.len },
+        .{ response.status, body.len },
     );
     defer ctx.allocator.free(status_msg);
     try ctx.stdout.appendSlice(ctx.allocator, status_msg);
@@ -204,7 +214,8 @@ pub fn netScan(ctx: *Context, args: []const []const u8) !BuiltinResult {
     const ip_str = cidr[0..slash_pos];
     const mask_str = cidr[slash_pos + 1 ..];
 
-    const base_addr = std.net.Address.parseIp4(ip_str, 0) catch {
+    // Parse the base IP address
+    const base_ip_addr = net.IpAddress.parse(ip_str, 0) catch {
         try ctx.stdout.appendSlice(ctx.allocator, "❌ Invalid IP address\n");
         return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
     };
@@ -223,34 +234,59 @@ pub fn netScan(ctx: *Context, args: []const []const u8) !BuiltinResult {
     defer ctx.allocator.free(header);
     try ctx.stdout.appendSlice(ctx.allocator, header);
 
+    // Create Io runtime for networking
+    var io_runtime = std.Io.Threaded.init(ctx.allocator);
+    defer io_runtime.deinit();
+    const io = io_runtime.io();
+
     const host_bits: u5 = @intCast(32 - mask);
     const host_count = (@as(u32, 1) << host_bits) - 2; // Exclude network and broadcast
-    const base_ip = base_addr.in.sa.addr;
+
+    // Extract base IP bytes
+    const base_ip_bytes = switch (base_ip_addr) {
+        .ip4 => |ip4| ip4.bytes,
+        .ip6 => {
+            try ctx.stdout.appendSlice(ctx.allocator, "❌ IPv6 not supported for scanning\n");
+            return BuiltinResult{ .status = 1, .output = try ctx.stdout.toOwnedSlice(ctx.allocator) };
+        },
+    };
+
+    const base_ip_u32 = @as(u32, base_ip_bytes[0]) << 24 |
+                        @as(u32, base_ip_bytes[1]) << 16 |
+                        @as(u32, base_ip_bytes[2]) << 8 |
+                        @as(u32, base_ip_bytes[3]);
 
     var alive_count: u32 = 0;
     var i: u32 = 1;
     while (i <= host_count and i <= 254) : (i += 1) {
-        const test_ip = base_ip + i;
-        const addr = std.net.Address.initIp4(
-            @as([4]u8, @bitCast(@byteSwap(test_ip))),
-            80,
-        );
+        const test_ip_u32 = base_ip_u32 + i;
+        const test_ip_bytes = [4]u8{
+            @intCast((test_ip_u32 >> 24) & 0xFF),
+            @intCast((test_ip_u32 >> 16) & 0xFF),
+            @intCast((test_ip_u32 >> 8) & 0xFF),
+            @intCast(test_ip_u32 & 0xFF),
+        };
+
+        const test_addr = net.IpAddress{ .ip4 = .{
+            .bytes = test_ip_bytes,
+            .port = 80,
+        }};
 
         // Try to connect with very short timeout
-        const stream = std.net.tcpConnectToAddress(addr) catch {
+        const stream = test_addr.connect(io, .{ .mode = .stream }) catch {
             continue;
         };
-        stream.close();
+        stream.close(io);
 
         alive_count += 1;
         const ip_msg = try std.fmt.allocPrint(
             ctx.allocator,
-            "  ✅ {}.{}.{}.{}\n",
+            "  ✅ {d}.{d}.{d}.{d}\n",
             .{
-                (test_ip >> 24) & 0xFF,
-                (test_ip >> 16) & 0xFF,
-                (test_ip >> 8) & 0xFF,
-                test_ip & 0xFF,
+                test_ip_bytes[0],
+                test_ip_bytes[1],
+                test_ip_bytes[2],
+                test_ip_bytes[3],
             },
         );
         defer ctx.allocator.free(ip_msg);

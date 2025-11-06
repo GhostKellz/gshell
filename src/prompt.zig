@@ -104,10 +104,10 @@ pub const PromptEngine = struct {
                 .user = ctx.user,
                 .host = ctx.host,
                 .exit_code = ctx.exit_code,
-                .timestamp_ms = std.time.milliTimestamp(),
+                .timestamp_ms = @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000),
             };
 
-            if (self.instant_prompt.?.load(cache_ctx)) |cached| {
+            if (try self.instant_prompt.?.load(cache_ctx)) |cached| {
                 // Cache hit! Return instantly
                 return cached;
             }
@@ -123,7 +123,7 @@ pub const PromptEngine = struct {
                         .user = ctx.user,
                         .host = ctx.host,
                         .exit_code = ctx.exit_code,
-                        .timestamp_ms = std.time.milliTimestamp(),
+                        .timestamp_ms = @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000),
                     };
                     ip.save(cache_ctx, gk_prompt) catch {};
                 }

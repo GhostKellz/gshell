@@ -182,28 +182,28 @@ pub const GhostKellzPrompt = struct {
         _ = ctx;
 
         // Detect versions in current directory
-        if (self.version_detector.detectNodeJs()) |info| {
+        if (try self.version_detector.detectNodeJs()) |info| {
             const seg = try self.renderVersionSegment("", info.version, Colors.green1, Colors.gray3);
             defer self.allocator.free(seg);
             try segments.appendSlice(self.allocator, "  ");
             try segments.appendSlice(self.allocator, seg);
         }
 
-        if (self.version_detector.detectRust()) |info| {
+        if (try self.version_detector.detectRust()) |info| {
             const seg = try self.renderVersionSegment("", info.version, Colors.red1, Colors.gray3);
             defer self.allocator.free(seg);
             try segments.appendSlice(self.allocator, "  ");
             try segments.appendSlice(self.allocator, seg);
         }
 
-        if (self.version_detector.detectGo()) |info| {
+        if (try self.version_detector.detectGo()) |info| {
             const seg = try self.renderVersionSegment("", info.version, Colors.blue6, Colors.gray3);
             defer self.allocator.free(seg);
             try segments.appendSlice(self.allocator, "  ");
             try segments.appendSlice(self.allocator, seg);
         }
 
-        if (self.version_detector.detectZig()) |info| {
+        if (try self.version_detector.detectZig()) |info| {
             const seg = try self.renderVersionSegment("⚡", info.version, Colors.yellow, Colors.gray3);
             defer self.allocator.free(seg);
             try segments.appendSlice(self.allocator, "  ");

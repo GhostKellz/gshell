@@ -97,7 +97,10 @@ fn getDefaultConfigTemplate(allocator: std.mem.Allocator) ![]const u8 {
 
     const stat = try file.stat();
     const content = try allocator.alloc(u8, stat.size);
-    _ = try file.readAll(content);
+    const bytes_read = try file.read(content);
+    if (bytes_read != content.len) {
+        return error.UnexpectedEof;
+    }
     return content;
 }
 

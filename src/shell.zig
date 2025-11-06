@@ -19,12 +19,12 @@ var sigtstp_flag = std.atomic.Value(bool).init(false);
 var sigchld_flag = std.atomic.Value(bool).init(false);
 const MAX_LINE_BYTES: usize = 1 << 16;
 
-fn signalHandler(sig: c_int) callconv(.c) void {
-    if (sig == posix.SIG.INT) {
+fn signalHandler(sig: posix.SIG) callconv(.c) void {
+    if (sig == .INT) {
         sigint_flag.store(true, .seq_cst);
-    } else if (sig == posix.SIG.TSTP) {
+    } else if (sig == .TSTP) {
         sigtstp_flag.store(true, .seq_cst);
-    } else if (sig == posix.SIG.CHLD) {
+    } else if (sig == .CHLD) {
         sigchld_flag.store(true, .seq_cst);
     }
 }
@@ -256,13 +256,6 @@ pub const Shell = struct {
                     rendered_prompt,
                     MAX_LINE_BYTES,
                 ) catch |err| switch (err) {
-                    error.OperationAborted => {
-                        if (sigint_flag.swap(false, .seq_cst)) {
-                            try stdout_file.writeAll("\r\n");
-                        }
-                        self.history_index = null;
-                        continue;
-                    },
                     error.LineTooLong => {
                         try stdout_file.writeAll("\r\n");
                         try stderr_file.writeAll("error: input line too long\n");
@@ -276,12 +269,6 @@ pub const Shell = struct {
                     try stdout_file.writeAll(self.config.prompt);
                 }
                 maybe_line = readLineAlloc(arena.allocator(), &stdin_file, MAX_LINE_BYTES) catch |err| switch (err) {
-                    error.OperationAborted => {
-                        if (sigint_flag.swap(false, .seq_cst)) {
-                            try stdout_file.writeAll("\n");
-                        }
-                        continue;
-                    },
                     error.LineTooLong => {
                         try stderr_file.writeAll("error: input line too long\n");
                         continue;
@@ -413,10 +400,8 @@ pub const Shell = struct {
 
         while (true) {
             _ = arena.reset(.retain_capacity);
-            const maybe_line = readLineAlloc(arena.allocator(), &file, MAX_LINE_BYTES) catch |err| switch (err) {
-                error.OperationAborted => continue,
-                else => return err,
-            };
+            const maybe_line = readLineAlloc(arena.allocator(), &file, MAX_LINE_BYTES) catch
+                continue;
             if (maybe_line == null) break;
             const line = maybe_line.?;
 
@@ -717,10 +702,7 @@ pub const Shell = struct {
                 return error.LineTooLong;
             }
 
-            const bytes_read = stdin_file.read(&byte_buf) catch |err| switch (err) {
-                error.OperationAborted => return error.OperationAborted,
-                else => return err,
-            };
+            const bytes_read = stdin_file.read(&byte_buf) catch |err| return err;
 
             if (bytes_read == 0) {
                 if (buffer.items.len == 0) {
@@ -774,7 +756,7 @@ pub const Shell = struct {
                         rendered_width = prompt_width;
                         continue;
                     }
-                    return error.OperationAborted;
+                    continue;
                 },
                 0x09 => { // Tab - completion
                     if (search_mode) continue; // Skip completion in search mode
@@ -920,7 +902,6 @@ pub const Shell = struct {
                     var consumed: usize = 0;
                     while (consumed < seq_buf.len) {
                         const r = stdin_file.read(seq_buf[consumed .. consumed + 1]) catch |err| switch (err) {
-                            error.OperationAborted => return error.OperationAborted,
                             else => return err,
                         };
                         if (r == 0) break;
@@ -1115,10 +1096,7 @@ fn readLineAlloc(
     var byte_buf: [1]u8 = undefined;
 
     while (true) {
-        const bytes_read = file.read(&byte_buf) catch |err| switch (err) {
-            error.OperationAborted => return error.OperationAborted,
-            else => return err,
-        };
+        const bytes_read = file.read(&byte_buf) catch |err| return err;
 
         if (bytes_read == 0) {
             if (buffer.items.len == 0) {
@@ -1304,7 +1282,6 @@ fn readLineInteractive(
         }
 
         const bytes_read = stdin_file.read(&byte_buf) catch |err| switch (err) {
-            error.OperationAborted => return error.OperationAborted,
             else => return err,
         };
 
@@ -1329,7 +1306,7 @@ fn readLineInteractive(
                 continue;
             },
             0x03 => { // Ctrl-C
-                return error.OperationAborted;
+                continue;
             },
             0x01 => { // Ctrl-A
                 if (cursor != 0) {
@@ -1362,7 +1339,6 @@ fn readLineInteractive(
                 var consumed: usize = 0;
                 while (consumed < seq_buf.len) {
                     const r = stdin_file.read(seq_buf[consumed .. consumed + 1]) catch |err| switch (err) {
-                        error.OperationAborted => return error.OperationAborted,
                         else => return err,
                     };
                     if (r == 0) break;

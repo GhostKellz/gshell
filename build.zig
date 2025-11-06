@@ -57,6 +57,7 @@ pub fn build(b: *std.Build) void {
     const grove_dep = b.dependency("grove", .{ .target = target, .optimize = optimize });
     const zontom_dep = b.dependency("zontom", .{ .target = target, .optimize = optimize });
     const grim_dep = b.dependency("grim", .{ .target = target, .optimize = optimize });
+    const zhttp_dep = b.dependency("zhttp", .{ .target = target, .optimize = optimize });
     mod.addImport("flash", flash_dep.module("flash"));
     mod.addImport("flare", flare_dep.module("flare"));
     mod.addImport("gcode", gcode_dep.module("gcode"));
@@ -67,6 +68,7 @@ pub fn build(b: *std.Build) void {
     mod.addImport("zqlite", zqlite_dep.module("zqlite"));
     mod.addImport("ghostlang", ghostlang_dep.module("ghostlang"));
     mod.addImport("zdoc", zdoc_dep.module("zdoc"));
+    mod.addImport("zhttp", zhttp_dep.module("zhttp"));
     mod.addImport("grove", grove_dep.module("grove"));
     mod.addImport("zontom", zontom_dep.module("zontom"));
     mod.addImport("grim", grim_dep.module("grim"));

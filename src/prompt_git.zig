@@ -21,9 +21,9 @@ const GitCache = struct {
     timestamp: i64,
     ttl_ms: i64 = 5000, // 5 second cache
 
-    pub fn isValid(self: *const GitCache, current_cwd: []const u8) bool {
+    pub fn isValid(self: *const GitCache, current_cwd: []const u8) !bool {
         if (!std.mem.eql(u8, self.cwd, current_cwd)) return false;
-        const now = std.time.milliTimestamp();
+        const now = @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000);
         return (now - self.timestamp) < self.ttl_ms;
     }
 
@@ -56,7 +56,7 @@ pub const GitPrompt = struct {
 
         // Check cache
         if (self.cache) |*cache| {
-            if (cache.isValid(cwd)) {
+            if (try cache.isValid(cwd)) {
                 // Return cached copy
                 return GitInfo{
                     .branch = if (cache.info.branch) |b| try self.allocator.dupe(u8, b) else null,
@@ -84,7 +84,7 @@ pub const GitPrompt = struct {
                 .in_repo = info.in_repo,
             },
             .cwd = try self.allocator.dupe(u8, cwd),
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000),
         };
 
         return info;

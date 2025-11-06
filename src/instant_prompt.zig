@@ -82,12 +82,12 @@ pub const InstantPromptCache = struct {
     };
 
     /// Get current timestamp in milliseconds
-    fn getCurrentTimeMs() i64 {
-        return std.time.milliTimestamp();
+    fn getCurrentTimeMs() !i64 {
+        return @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000);
     }
 
     /// Load cached prompt if valid
-    pub fn load(self: *Self, current_ctx: CacheContext) ?[]const u8 {
+    pub fn load(self: *Self, current_ctx: CacheContext) !?[]const u8 {
         if (!self.enabled) return null;
 
         // Read cache file
@@ -100,10 +100,14 @@ pub const InstantPromptCache = struct {
         const content = self.allocator.alloc(u8, stat.size) catch return null;
         errdefer self.allocator.free(content);
 
-        _ = file.readAll(content) catch {
+        const bytes_read = file.read(content) catch {
             self.allocator.free(content);
             return null;
         };
+        if (bytes_read != content.len) {
+            self.allocator.free(content);
+            return null;
+        }
 
         // Parse cache format: <context>\n<prompt>
         const newline_pos = std.mem.indexOfScalar(u8, content, '\n') orelse {
@@ -122,7 +126,7 @@ pub const InstantPromptCache = struct {
         defer cached_ctx.deinit(self.allocator);
 
         // Validate cache
-        const now = getCurrentTimeMs();
+        const now = try getCurrentTimeMs();
         const age_ms = now - cached_ctx.timestamp_ms;
 
         if (age_ms > self.max_age_ms) {

@@ -289,7 +289,7 @@ fn readFileAll(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
     }
 
     var buffer = try allocator.alloc(u8, @as(usize, @intCast(size)));
-    const read = try file.readAll(buffer);
+    const read = try file.read(buffer);
     return buffer[0..read];
 }
 

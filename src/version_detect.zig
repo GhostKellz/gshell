@@ -34,23 +34,23 @@ pub const VersionDetector = struct {
     }
 
     /// Get current timestamp in milliseconds
-    fn getCurrentTimeMs() i64 {
-        return std.time.milliTimestamp();
+    fn getCurrentTimeMs() !i64 {
+        return @divFloor((try std.time.Instant.now()).timestamp.nsec, 1_000_000);
     }
 
     /// Check if cached version is still valid
-    fn isCacheValid(self: *VersionDetector, key: []const u8) bool {
+    fn isCacheValid(self: *VersionDetector, key: []const u8) !bool {
         const info = self.cache.get(key) orelse return false;
-        const now = getCurrentTimeMs();
+        const now = try getCurrentTimeMs();
         return (now - info.detected_at_ms) < self.cache_ttl_ms;
     }
 
     /// Detect Node.js version if package.json exists
-    pub fn detectNodeJs(self: *VersionDetector) ?VersionInfo {
+    pub fn detectNodeJs(self: *VersionDetector) !?VersionInfo {
         const cache_key = "nodejs";
 
         // Check cache first
-        if (self.isCacheValid(cache_key)) {
+        if (try self.isCacheValid(cache_key)) {
             return self.cache.get(cache_key);
         }
 
@@ -86,7 +86,7 @@ pub const VersionDetector = struct {
         const info = VersionInfo{
             .version = owned_version,
             .icon = "",
-            .detected_at_ms = getCurrentTimeMs(),
+            .detected_at_ms = try getCurrentTimeMs(),
         };
 
         // Cache it
@@ -105,11 +105,11 @@ pub const VersionDetector = struct {
     }
 
     /// Detect Rust version if Cargo.toml exists
-    pub fn detectRust(self: *VersionDetector) ?VersionInfo {
+    pub fn detectRust(self: *VersionDetector) !?VersionInfo {
         const cache_key = "rust";
 
         // Check cache first
-        if (self.isCacheValid(cache_key)) {
+        if (try self.isCacheValid(cache_key)) {
             return self.cache.get(cache_key);
         }
 
@@ -145,7 +145,7 @@ pub const VersionDetector = struct {
         const info = VersionInfo{
             .version = owned_version,
             .icon = "",
-            .detected_at_ms = getCurrentTimeMs(),
+            .detected_at_ms = try getCurrentTimeMs(),
         };
 
         // Cache it
@@ -164,11 +164,11 @@ pub const VersionDetector = struct {
     }
 
     /// Detect Go version if go.mod exists
-    pub fn detectGo(self: *VersionDetector) ?VersionInfo {
+    pub fn detectGo(self: *VersionDetector) !?VersionInfo {
         const cache_key = "go";
 
         // Check cache first
-        if (self.isCacheValid(cache_key)) {
+        if (try self.isCacheValid(cache_key)) {
             return self.cache.get(cache_key);
         }
 
@@ -210,7 +210,7 @@ pub const VersionDetector = struct {
         const info = VersionInfo{
             .version = owned_version,
             .icon = "",
-            .detected_at_ms = getCurrentTimeMs(),
+            .detected_at_ms = try getCurrentTimeMs(),
         };
 
         // Cache it
@@ -229,11 +229,11 @@ pub const VersionDetector = struct {
     }
 
     /// Detect Python version if requirements.txt, setup.py, or pyproject.toml exists
-    pub fn detectPython(self: *VersionDetector) ?VersionInfo {
+    pub fn detectPython(self: *VersionDetector) !?VersionInfo {
         const cache_key = "python";
 
         // Check cache first
-        if (self.isCacheValid(cache_key)) {
+        if (try self.isCacheValid(cache_key)) {
             return self.cache.get(cache_key);
         }
 
@@ -282,7 +282,7 @@ pub const VersionDetector = struct {
         const info = VersionInfo{
             .version = owned_version,
             .icon = "",
-            .detected_at_ms = getCurrentTimeMs(),
+            .detected_at_ms = try getCurrentTimeMs(),
         };
 
         // Cache it
@@ -301,11 +301,11 @@ pub const VersionDetector = struct {
     }
 
     /// Detect Zig version if build.zig exists
-    pub fn detectZig(self: *VersionDetector) ?VersionInfo {
+    pub fn detectZig(self: *VersionDetector) !?VersionInfo {
         const cache_key = "zig";
 
         // Check cache first
-        if (self.isCacheValid(cache_key)) {
+        if (try self.isCacheValid(cache_key)) {
             return self.cache.get(cache_key);
         }
 
@@ -337,7 +337,7 @@ pub const VersionDetector = struct {
         const info = VersionInfo{
             .version = owned_version,
             .icon = "⚡",
-            .detected_at_ms = getCurrentTimeMs(),
+            .detected_at_ms = try getCurrentTimeMs(),
         };
 
         // Cache it

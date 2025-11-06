@@ -35,7 +35,7 @@ pub const HistoryStore = struct {
         defer self.mutex.unlock();
 
         try self.file.seekFromEnd(0);
-        const timestamp = std.time.timestamp();
+        const timestamp = (try std.time.Instant.now()).timestamp.sec;
 
         // Format the history record
         var buf: [4096]u8 = undefined;
